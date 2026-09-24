@@ -172,7 +172,13 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
       notes: notes || '特になし',
     }
   }
-  throw new Error('名前と所在地が一致するウィキペディアの記事が見つかりませんでした。')
+  return {
+    title: name,
+    url: '',
+    period: '特になし',
+    size: '特になし',
+    notes: '特になし',
+  }
 }
 
 let municipalityNames: Map<string, { prefecture: string; city: string }> | null = null

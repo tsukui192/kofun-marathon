@@ -107,15 +107,13 @@ export function CoursePage({
                 <p>
                   <strong>特記事項</strong> {wiki.notes}
                 </p>
-                {wiki.url ? (
+                {wiki.url && (
                   <p className="muted">
                     日本語版ウィキペディアの記事に基づきます。
                     <a href={wiki.url} target="_blank" rel="noreferrer">
                       記事を開く
                     </a>
                   </p>
-                ) : (
-                  <p className="muted">ウィキペディアに記事がないため、特になしと表示しています。</p>
                 )}
               </article>
             )}
