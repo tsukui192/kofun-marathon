@@ -1,4 +1,5 @@
 import type { PlaceHit } from '../types.ts'
+import { kofunPlaces } from './course.ts'
 import { haversineKm } from './geo.ts'
 
 export type WikiSummary = {
@@ -507,6 +508,8 @@ function stationGroups(stations: { title: string; lat: number; lng: number }[]) 
 }
 
 export async function searchPlaces(query: string): Promise<PlaceHit[]> {
+  const named = kofunPlaces(query)
+  if (named.length > 0) return named
   const search = new URL('https://msearch.gsi.go.jp/address-search/AddressSearch')
   search.searchParams.set('q', query.trim())
   const response = await fetch(search)

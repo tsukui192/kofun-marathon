@@ -1,6 +1,6 @@
 import kofunData from '../data/kofun.json'
 import { noteFor } from '../data/notes.ts'
-import type { CourseStop, Kofun, LatLng } from '../types.ts'
+import type { CourseStop, Kofun, LatLng, PlaceHit } from '../types.ts'
 import { bearing, haversineKm } from './geo.ts'
 
 const KOFUN = kofunData as Kofun[]
@@ -119,4 +119,16 @@ export function toStops(kofun: Kofun[]): CourseStop[] {
 
 export function nearbyKofun(start: LatLng, radiusKm = 8, limit = 30): Kofun[] {
   return nearest(start, radiusKm, limit)
+}
+
+export function kofunPlaces(query: string): PlaceHit[] {
+  const trimmed = query.trim()
+  if (trimmed.length < 2 || trimmed === '古墳') return []
+  return KOFUN.filter((item) => item.name === trimmed || (trimmed.includes('古墳') && item.name.includes(trimmed))).map(
+    (item) => ({
+      label: `${item.address} ${item.name}`,
+      lat: item.lat,
+      lng: item.lng,
+    }),
+  )
 }
