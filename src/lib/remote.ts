@@ -47,34 +47,40 @@ function wikiApi(params: Record<string, string>) {
   return url
 }
 
+type WikiHit = { title: string; snippet: string }
+type WikiPage = { title: string; text: string }
+
 async function wikiSearch(query: string) {
   const response = await fetch(
     wikiApi({
       action: 'query',
       list: 'search',
       srsearch: query,
-      srlimit: '8',
+      srlimit: '5',
+      srprop: 'snippet',
     }),
   )
   if (!response.ok) throw new Error('ウィキペディアを参照できませんでした。')
   const data = (await response.json()) as {
-    query?: { search?: { title: string }[] }
+    query?: { search?: WikiHit[] }
   }
   return data.query?.search ?? []
 }
 
-async function wikiText(title: string) {
+async function wikiTexts(titles: string[]): Promise<WikiPage[]> {
+  const unique = [...new Set(titles.filter(Boolean))]
+  if (unique.length === 0) return []
   const response = await fetch(
     wikiApi({
       action: 'query',
       prop: 'revisions',
       rvprop: 'content',
       rvslots: 'main',
-      titles: title,
+      titles: unique.join('|'),
       redirects: '1',
     }),
   )
-  if (!response.ok) return null
+  if (!response.ok) return []
   const data = (await response.json()) as {
     query?: {
       pages?: Record<
@@ -83,11 +89,12 @@ async function wikiText(title: string) {
       >
     }
   }
-  const page = Object.values(data.query?.pages ?? {})[0]
-  if (!page || page.missing !== undefined) return null
-  const text = page.revisions?.[0]?.slots?.main?.['*'] ?? ''
-  if (text.includes('曖昧さ回避') || text.includes('{{Aimai}}')) return null
-  return { title: page.title ?? title, text }
+  return Object.values(data.query?.pages ?? {}).flatMap((page) => {
+    if (!page || page.missing !== undefined) return []
+    const text = page.revisions?.[0]?.slots?.main?.['*'] ?? ''
+    if (!text || text.includes('曖昧さ回避') || text.includes('{{Aimai}}')) return []
+    return [{ title: page.title ?? '', text }]
+  })
 }
 
 const FAME_WORDS: [string, number][] = [
@@ -206,49 +213,82 @@ function scoreWikiTitle(title: string, name: string, city: string) {
   return 0
 }
 
+function summaryFromPage(page: WikiPage, name: string, city: string): WikiSummary | null {
+  const pageName = wikiField(page.text, '名称')
+  const place = wikiField(page.text, '所在地')
+  const nameMatches = page.title.startsWith(name) || pageName === name || page.text.includes(`'''${name}'''`)
+  const placeMatches = !city || place.includes(city) || page.title.includes(city) || page.text.includes(city)
+  if (!nameMatches || !placeMatches) return null
+  const period = wikiField(page.text, '築造年代') || wikiField(page.text, '築造時期') || prosePeriod(page.text)
+  const shape = wikiField(page.text, '形状')
+  const scale =
+    wikiField(page.text, '規模') || wikiField(page.text, '墳長') || wikiField(page.text, '墳丘長') || proseSize(page.text)
+  const notes = famousNotes(page.text)
+  return {
+    title: page.title,
+    url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
+    period: period || '特になし',
+    size: [shape, scale].filter(Boolean).join('、') || '特になし',
+    notes: notes || '特になし',
+    sources: period || shape || scale || notes ? ['日本語版ウィキペディア'] : [],
+  }
+}
+
+function summaryFromMention(name: string, articleTitle: string, sentence: string): WikiSummary | null {
+  const period = periodIn(sentence)
+  const size = sizeIn(sentence)
+  if (!period && !size) return null
+  const notes = noteFromMention(sentence, name, period, size)
+  return {
+    title: name,
+    url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(articleTitle)}`,
+    period: period || '特になし',
+    size: size || '特になし',
+    notes: notes || '特になし',
+    sources: ['日本語版ウィキペディア'],
+  }
+}
+
+function plainSnippet(snippet: string) {
+  return stripWiki(snippet.replace(/<[^>]+>/g, ''))
+}
+
 export async function fetchWiki(name: string, address: string): Promise<WikiSummary> {
   const city = cityFromAddress(address)
-  let hits: { title: string }[] = []
-  try {
-    hits = await wikiSearch(city ? `${name} ${city}` : name)
-  } catch {
-    hits = []
+  const prefecture = prefectureFromAddress(address)
+  const directTitles = [city ? `${name} (${city})` : '', name].filter(Boolean)
+  const [pages, hits] = await Promise.all([
+    wikiTexts(directTitles),
+    wikiSearch(name).catch(() => [] as WikiHit[]),
+  ])
+  const ordered = [...pages].sort((a, b) => scoreWikiTitle(b.title, name, city) - scoreWikiTitle(a.title, name, city))
+  for (const page of ordered) {
+    const summary = summaryFromPage(page, name, city)
+    if (summary && hasWikiFacts(summary)) return summary
   }
-  const titles = [...hits.map((hit) => hit.title)]
-  if (!titles.includes(name)) titles.unshift(name)
-  if (city && !titles.includes(`${name} (${city})`)) titles.unshift(`${name} (${city})`)
-  const ordered = titles
-    .filter((title) => title.includes(name))
-    .sort((a, b) => scoreWikiTitle(b, name, city) - scoreWikiTitle(a, name, city))
-  for (const title of ordered) {
-    const page = await wikiText(title)
-    if (!page) continue
-    const pageName = wikiField(page.text, '名称')
-    const place = wikiField(page.text, '所在地')
-    const nameMatches = page.title.startsWith(name) || pageName === name || page.text.includes(`'''${name}'''`)
-    const placeMatches =
-      !city || place.includes(city) || page.title.includes(city) || page.text.includes(city)
-    if (!nameMatches || !placeMatches) continue
-    const period = wikiField(page.text, '築造年代') || wikiField(page.text, '築造時期') || prosePeriod(page.text)
-    const shape = wikiField(page.text, '形状')
-    const scale =
-      wikiField(page.text, '規模') ||
-      wikiField(page.text, '墳長') ||
-      wikiField(page.text, '墳丘長') ||
-      proseSize(page.text)
-    const notes = famousNotes(page.text)
-    const summary: WikiSummary = {
-      title: page.title,
-      url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-      period: period || '特になし',
-      size: [shape, scale].filter(Boolean).join('、') || '特になし',
-      notes: notes || '特になし',
-      sources: period || shape || scale || notes ? ['日本語版ウィキペディア'] : [],
-    }
-    if (hasWikiFacts(summary)) return summary
+  for (const hit of hits) {
+    if (hit.title === name || hit.title.startsWith(`${name} (`)) continue
+    const snippet = plainSnippet(hit.snippet)
+    if (!snippet.includes(name)) continue
+    const located = city ? snippet.includes(city) : !prefecture || snippet.includes(prefecture)
+    if (!located) continue
+    const summary = summaryFromMention(name, hit.title, snippet)
+    if (summary) return summary
   }
-  const mentioned = await fetchMention(name, city, prefectureFromAddress(address))
-  if (mentioned) return mentioned
+  const mentionTitles = hits
+    .filter((hit) => hit.title !== name && !hit.title.startsWith(`${name} (`) && plainSnippet(hit.snippet).includes(name))
+    .map((hit) => hit.title)
+    .slice(0, 2)
+  const mentionPages = await wikiTexts(mentionTitles)
+  for (const page of mentionPages) {
+    if (city && !page.text.includes(city)) continue
+    if (!city && prefecture && !page.text.includes(prefecture)) continue
+    const ranked = mentionSentences(page.text, name)
+      .map((sentence) => summaryFromMention(name, page.title, sentence))
+      .filter((summary): summary is WikiSummary => summary !== null)
+      .sort((a, b) => Number(b.period !== '特になし') + Number(b.size !== '特になし') - (Number(a.period !== '特になし') + Number(a.size !== '特になし')))
+    if (ranked[0]) return ranked[0]
+  }
   return {
     title: name,
     url: '',
@@ -257,40 +297,6 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
     notes: '特になし',
     sources: [],
   }
-}
-
-async function fetchMention(name: string, city: string, prefecture: string): Promise<WikiSummary | null> {
-  let hits: { title: string }[] = []
-  try {
-    hits = await wikiSearch(name)
-  } catch {
-    return null
-  }
-  const titles = hits
-    .map((hit) => hit.title)
-    .filter((title) => title !== name && !title.startsWith(`${name} (`))
-    .slice(0, 4)
-  for (const title of titles) {
-    const page = await wikiText(title)
-    if (!page) continue
-    if (city && !page.text.includes(city)) continue
-    if (!city && prefecture && !page.text.includes(prefecture)) continue
-    const ranked = mentionSentences(page.text, name)
-      .map((sentence) => ({ sentence, period: periodIn(sentence), size: sizeIn(sentence) }))
-      .sort((a, b) => Number(Boolean(b.period)) + Number(Boolean(b.size)) - (Number(Boolean(a.period)) + Number(Boolean(a.size))))
-    const picked = ranked.find((item) => item.period || item.size)
-    if (!picked) continue
-    const notes = noteFromMention(picked.sentence, name, picked.period, picked.size)
-    return {
-      title: name,
-      url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-      period: picked.period || '特になし',
-      size: picked.size || '特になし',
-      notes: notes || '特になし',
-      sources: ['日本語版ウィキペディア'],
-    }
-  }
-  return null
 }
 
 const EMPTY_SUMMARY = (name: string): WikiSummary => ({
@@ -401,7 +407,18 @@ async function fetchWikidata(name: string): Promise<Pick<WikiSummary, 'period' |
   }
 }
 
-export async function fetchKofunInfo(name: string, address: string, localNote = ''): Promise<WikiSummary> {
+const infoCache = new Map<string, Promise<WikiSummary>>()
+
+export function fetchKofunInfo(name: string, address: string, localNote = ''): Promise<WikiSummary> {
+  const key = `${name}\n${address}\n${localNote}`
+  const cached = infoCache.get(key)
+  if (cached) return cached
+  const pending = loadKofunInfo(name, address, localNote)
+  infoCache.set(key, pending)
+  return pending
+}
+
+async function loadKofunInfo(name: string, address: string, localNote: string): Promise<WikiSummary> {
   let summary = EMPTY_SUMMARY(name)
   try {
     summary = await fetchWiki(name, address)
@@ -409,7 +426,7 @@ export async function fetchKofunInfo(name: string, address: string, localNote = 
     summary = EMPTY_SUMMARY(name)
   }
   let data: Awaited<ReturnType<typeof fetchWikidata>> = null
-  if (summary.period === '特になし' || summary.size === '特になし' || summary.notes === '特になし') {
+  if (summary.period === '特になし' && summary.size === '特になし') {
     try {
       data = await fetchWikidata(name)
     } catch {

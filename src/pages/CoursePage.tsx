@@ -33,17 +33,17 @@ export function CoursePage({
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    void Promise.all(
-      choices.map(async (stop) => {
-        const summary = await fetchKofunInfo(stop.name, stop.address, knownNote(stop.name))
-        return [stop.id, summary] as const
-      }),
-    ).then((rows) => {
-      if (cancelled) return
-      setSummaries(Object.fromEntries(rows))
-      setLoading(false)
-    })
+    setSummaries({})
+    setLoading(choices.length > 0)
+    let pending = choices.length
+    for (const stop of choices) {
+      void fetchKofunInfo(stop.name, stop.address, knownNote(stop.name)).then((summary) => {
+        if (cancelled) return
+        setSummaries((current) => ({ ...current, [stop.id]: summary }))
+        pending -= 1
+        if (pending === 0) setLoading(false)
+      })
+    }
     return () => {
       cancelled = true
     }
