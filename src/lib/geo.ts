@@ -25,3 +25,26 @@ export function bearing(a: LatLng, b: LatLng): number {
 export function formatKm(km: number): string {
   return `${km.toFixed(1)} km`
 }
+
+export function ringAreaKm2(line: [number, number][]): number {
+  if (line.length < 4) return 0
+  let sum = 0
+  for (let index = 0; index < line.length; index += 1) {
+    const [lat1, lng1] = line[index]
+    const [lat2, lng2] = line[(index + 1) % line.length]
+    sum += lng1 * lat2 - lng2 * lat1
+  }
+  return (Math.abs(sum) * 111 * 91) / 2
+}
+
+export function sidePoint(start: LatLng, stop: LatLng, offsetKm: number, sign: number): LatLng {
+  const north = (stop.lat - start.lat) * 111
+  const east = (stop.lng - start.lng) * 91
+  const length = Math.hypot(north, east) || 1
+  const midLat = (start.lat + stop.lat) / 2
+  const midLng = (start.lng + stop.lng) / 2
+  return {
+    lat: midLat + ((east / length) * offsetKm * sign) / 111,
+    lng: midLng + ((-north / length) * offsetKm * sign) / 91,
+  }
+}

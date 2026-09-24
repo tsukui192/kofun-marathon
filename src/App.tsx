@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
-import { haversineKm } from './lib/geo.ts'
+import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
 import { nearbyKofun, orderLoop, rankStopSets, rankWideStopSets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
@@ -55,6 +55,36 @@ export default function App() {
         ...localOrder.map((kofun) => [kofun.lng, kofun.lat] as [number, number]),
         [place.lng, place.lat],
       ])
+    }
+    if (ringAreaKm2(route.line) < 0.2) {
+      const far = selected.reduce((left, right) => (haversineKm(place, left) >= haversineKm(place, right) ? left : right))
+      let opened: { distanceMeters: number; line: [number, number][] } | null = null
+      let openedArea = 0
+      for (const offsetKm of [1.2, 0.6]) {
+        for (const sign of [1, -1]) {
+          const side = sidePoint(place, far, offsetKm, sign)
+          try {
+            const via = await fetchRoute([
+              [place.lng, place.lat],
+              ...stops.map((stop) => [stop.lng, stop.lat] as [number, number]),
+              [side.lng, side.lat],
+              [place.lng, place.lat],
+            ])
+            if (via.distanceMeters / 1000 - target >= 2) continue
+            const area = ringAreaKm2(via.line)
+            if (area > openedArea) {
+              opened = via
+              openedArea = area
+            }
+          } catch {
+            continue
+          }
+        }
+      }
+      if (!opened || openedArea < 0.2) {
+        throw new Error('周回にすると希望の距離より2km以上長くなるため、コースを作れません。距離を変えてもう一度試してください。')
+      }
+      route = opened
     }
     const distanceKm = route.distanceMeters / 1000
     const plan: CoursePlan = {
