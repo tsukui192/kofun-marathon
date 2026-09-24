@@ -146,6 +146,17 @@ button.secondary {
   border-radius: 50%;
 }
 
+.notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #6b4423;
+  color: #fffdf8;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
 .distance {
   margin: 0;
   font-size: 1.8rem;

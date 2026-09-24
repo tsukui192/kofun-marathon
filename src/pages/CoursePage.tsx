@@ -70,7 +70,7 @@ export function CoursePage({
         draggable={false}
         onStopClick={(stop) => void openStop(stop)}
       />
-      <p className="muted">古墳名を押すと説明が出ます。回る古墳のチェックを変えると、道順が組み直されます。</p>
+      <p className="notice">古墳名を押すと説明が出ます。回る古墳のチェックを変えると、道順が組み直されます。</p>
       <ol className="list">
         {choices.map((stop) => {
           const picked = course.stops.some((item) => item.id === stop.id)
