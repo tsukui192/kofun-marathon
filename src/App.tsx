@@ -139,6 +139,10 @@ export default function App() {
     setBusy(true)
     try {
       const plan = await routeThrough(course.start, selected, course.targetKm)
+      if (plan.distanceKm - course.targetKm >= 2) {
+        setError('希望の距離より2km以上長くなるため、この組み合わせではコースを作れません。')
+        return
+      }
       setCourse({ ...plan, id: course.id, createdAt: course.createdAt })
     } catch (caught) {
       setError(
