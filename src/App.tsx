@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
-import { orderLoop, rankStopSets, toStops } from './lib/course.ts'
+import { haversineKm } from './lib/geo.ts'
+import { nearbyKofun, orderLoop, rankStopSets, rankWideStopSets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
@@ -9,6 +10,7 @@ import { SetupPage } from './pages/SetupPage.tsx'
 import type { CoursePlan, CourseStop, Kofun, PlaceHit, Visit } from './types.ts'
 
 type Page = 'setup' | 'course' | 'run'
+type CourseKind = 'loop' | 'wide' | 'out'
 
 function shortPlace(label: string): string {
   const head = label.split(',')[0]?.trim()
@@ -68,7 +70,45 @@ export default function App() {
     return plan
   }
 
-  async function createCourse() {
+  async function createOutAndBack() {
+    const pool = nearbyKofun(start!, Math.min(25, Math.max(4, parsedKm)), 6).filter(
+      (kofun) => haversineKm(start!, kofun) > 0.25,
+    )
+    let best: CoursePlan | null = null
+    let bestGap = Number.POSITIVE_INFINITY
+    for (const kofun of pool) {
+      const route = await fetchRoute([
+        [start!.lng, start!.lat],
+        [kofun.lng, kofun.lat],
+        [start!.lng, start!.lat],
+      ])
+      const distanceKm = route.distanceMeters / 1000
+      if (distanceKm - parsedKm >= 2) continue
+      const gap = Math.abs(distanceKm - parsedKm)
+      if (gap >= bestGap) continue
+      bestGap = gap
+      const stops = toStops([kofun])
+      best = {
+        id: crypto.randomUUID(),
+        title: `${shortPlace(start!.label)} · ${distanceKm.toFixed(1)}km`,
+        createdAt: new Date().toISOString(),
+        targetKm: parsedKm,
+        distanceKm,
+        start: start!,
+        stops,
+        line: route.line,
+      }
+    }
+    if (!best) {
+      setError('希望の距離より2km以上長いコースしか作れませんでした。距離を変えてもう一度試してください。')
+      return
+    }
+    setChoices(best.stops)
+    setCourse(best)
+    setPage('course')
+  }
+
+  async function createCourse(kind: CourseKind = 'loop') {
     setError('')
     setSaveMessage('')
     if (!person) {
@@ -85,7 +125,11 @@ export default function App() {
     }
     setBusy(true)
     try {
-      const sets = rankStopSets(start, parsedKm)
+      if (kind === 'out') {
+        await createOutAndBack()
+        return
+      }
+      const sets = kind === 'wide' ? rankWideStopSets(start, parsedKm) : rankStopSets(start, parsedKm)
       if (sets.length === 0) {
         setError('この近くには、コースにできる古墳が見つかりませんでした。')
         return
@@ -206,7 +250,7 @@ export default function App() {
           }}
           onTargetChange={setTargetKm}
           onUsePerson={usePerson}
-          onCreate={() => void createCourse()}
+          onCreate={(kind) => void createCourse(kind)}
           onOpenCourse={(saved) => {
             setChoices(saved.stops)
             setCourse(saved)

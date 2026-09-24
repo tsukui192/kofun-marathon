@@ -507,9 +507,92 @@ function stationGroups(stations: { title: string; lat: number; lng: number }[]) 
   return groups
 }
 
+function wikiLinkTitles(text: string) {
+  const titles: string[] = []
+  for (const match of text.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)) {
+    const title = match[1].trim()
+    if (!title.includes('古墳') || title.includes('曖昧') || title.includes('一覧')) continue
+    titles.push(title)
+  }
+  return titles
+}
+
+function kofunChoiceLabel(title: string) {
+  const named = title.match(/^(.+) \((.+)\)$/)
+  return named ? `${named[2]} ${named[1]}` : title
+}
+
+async function wikiCoordinates(titles: string[]): Promise<PlaceHit[]> {
+  const unique = [...new Set(titles)].slice(0, 20)
+  if (unique.length === 0) return []
+  const response = await fetch(
+    wikiApi({
+      action: 'query',
+      prop: 'coordinates',
+      titles: unique.join('|'),
+      redirects: '1',
+    }),
+  )
+  if (!response.ok) return []
+  const data = (await response.json()) as {
+    query?: { pages?: Record<string, { title?: string; coordinates?: { lat: number; lon: number }[] }> }
+  }
+  return Object.values(data.query?.pages ?? {}).flatMap((page) => {
+    const point = page.coordinates?.[0]
+    const title = page.title ?? ''
+    if (!point || !title.includes('古墳') || title.endsWith('古墳群')) return []
+    return [{ label: kofunChoiceLabel(title), lat: point.lat, lng: point.lon }]
+  })
+}
+
+async function wikiGroupKofun(query: string): Promise<PlaceHit[]> {
+  const trimmed = query.trim()
+  if (!trimmed.includes('古墳')) return []
+  let hits: { title: string }[] = []
+  try {
+    hits = await wikiSearch(trimmed)
+  } catch {
+    return []
+  }
+  const titles = new Set<string>()
+  const groups = new Set<string>()
+  for (const hit of hits) {
+    if (hit.title === trimmed || hit.title.startsWith(`${trimmed} (`)) titles.add(hit.title)
+    if (hit.title.endsWith('古墳群')) groups.add(hit.title)
+  }
+  for (const title of [...titles]) {
+    const pages = await wikiTexts([title])
+    const text = pages[0]?.text ?? ''
+    if (!text.includes('曖昧さ回避') && !text.includes('{{aimai}}') && !text.includes('{{Aimai}}')) continue
+    for (const linked of wikiLinkTitles(text)) {
+      if (linked.endsWith('古墳群')) groups.add(linked)
+      else titles.add(linked)
+    }
+  }
+  for (const group of groups) {
+    const pages = await wikiTexts([group])
+    const text = pages[0]?.text ?? ''
+    const members = text.match(/==+\s*主な古墳\s*==+\n([\s\S]*?)(?=\n==|$)/)?.[1] ?? ''
+    if (!members.includes(trimmed.replace(/古墳群$/, ''))) {
+      const mentioned = members.includes(trimmed) || text.includes(`[[${trimmed}`)
+      if (!mentioned && !text.includes(trimmed)) continue
+    }
+    for (const linked of wikiLinkTitles(members || text)) {
+      if (!linked.endsWith('古墳群')) titles.add(linked)
+    }
+  }
+  return wikiCoordinates([...titles])
+}
+
 export async function searchPlaces(query: string): Promise<PlaceHit[]> {
   const named = kofunPlaces(query)
-  if (named.length > 0) return named
+  const extra = await wikiGroupKofun(query)
+  const merged = [...named]
+  for (const place of extra) {
+    if (merged.some((item) => haversineKm(item, place) < 0.4)) continue
+    merged.push(place)
+  }
+  if (merged.length > 0) return merged
   const search = new URL('https://msearch.gsi.go.jp/address-search/AddressSearch')
   search.searchParams.set('q', query.trim())
   const response = await fetch(search)
