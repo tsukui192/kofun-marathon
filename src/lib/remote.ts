@@ -167,9 +167,9 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
     return {
       title: page.title,
       url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
-      period: period || '記事に年代の記載がありません。',
-      size: [shape, scale].filter(Boolean).join('、') || '記事にサイズの記載がありません。',
-      notes: notes || '記事に、なぜ知られているかの記載がありません。',
+      period: period || '特になし',
+      size: [shape, scale].filter(Boolean).join('、') || '特になし',
+      notes: notes || '特になし',
     }
   }
   throw new Error('名前と所在地が一致するウィキペディアの記事が見つかりませんでした。')

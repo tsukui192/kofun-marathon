@@ -29,20 +29,22 @@ export function CoursePage({
 }: CoursePageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [wiki, setWiki] = useState<WikiSummary | null>(null)
-  const [wikiError, setWikiError] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function openStop(stop: CourseStop) {
     setSelectedId(stop.id)
     setWiki(null)
-    setWikiError('')
     setLoading(true)
     try {
       setWiki(await fetchWiki(stop.name, stop.address))
-    } catch (caught) {
-      setWikiError(
-        caught instanceof Error ? caught.message : 'ウィキペディアにまとめが見つかりませんでした。',
-      )
+    } catch {
+      setWiki({
+        title: stop.name,
+        url: '',
+        period: '特になし',
+        size: '特になし',
+        notes: '特になし',
+      })
     } finally {
       setLoading(false)
     }
@@ -93,7 +95,6 @@ export function CoursePage({
               <span className="muted">{stop.address}</span>
             </button>
             {selectedId === stop.id && loading && <p className="muted">要約を読んでいます。</p>}
-            {selectedId === stop.id && wikiError && <p className="error">{wikiError}</p>}
             {selectedId === stop.id && wiki && (
               <article className="card">
                 <h2>{wiki.title}</h2>
@@ -106,12 +107,16 @@ export function CoursePage({
                 <p>
                   <strong>特記事項</strong> {wiki.notes}
                 </p>
-                <p className="muted">
-                  日本語版ウィキペディアの記事に基づきます。
-                  <a href={wiki.url} target="_blank" rel="noreferrer">
-                    記事を開く
-                  </a>
-                </p>
+                {wiki.url ? (
+                  <p className="muted">
+                    日本語版ウィキペディアの記事に基づきます。
+                    <a href={wiki.url} target="_blank" rel="noreferrer">
+                      記事を開く
+                    </a>
+                  </p>
+                ) : (
+                  <p className="muted">ウィキペディアに記事がないため、特になしと表示しています。</p>
+                )}
               </article>
             )}
           </li>
@@ -120,7 +125,11 @@ export function CoursePage({
       </ol>
       {busy && <p className="muted">選んだ古墳で道順を作り直しています。</p>}
       {error && <p className="error">{error}</p>}
-      <p className="muted">道に沿った徒歩ルートです。直線ではありません。</p>
+      <p className="distance">
+        {formatKm(course.distanceKm)}
+        <span>走行距離</span>
+      </p>
+      <p className="muted">チェックした古墳を通り、起点に戻る道のりの長さです。</p>
       {saveMessage && (
         <p className={saveMessage === '保存しました。' ? 'muted' : 'error'}>{saveMessage}</p>
       )}
