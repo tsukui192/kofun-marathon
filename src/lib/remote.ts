@@ -527,26 +527,51 @@ function kofunChoiceLabel(title: string) {
   return named ? `${named[2]} ${named[1]}` : title
 }
 
+function spacedAddress(place: string) {
+  const matched = place.match(/^(.+?[都道府県])(.+?[市区町村])(.*)$/)
+  if (!matched) return place
+  return [matched[1], matched[2], matched[3]].filter(Boolean).join(' ')
+}
+
+function labelFromWiki(title: string, text: string) {
+  const name = title.replace(/\s*\([^)]*\)\s*$/, '')
+  const place = wikiField(text, '所在地')
+  if (!place) return kofunChoiceLabel(title)
+  return `${spacedAddress(place)} ${name}`
+}
+
 async function wikiCoordinates(titles: string[]): Promise<PlaceHit[]> {
   const unique = [...new Set(titles)].slice(0, 20)
   if (unique.length === 0) return []
   const response = await fetch(
     wikiApi({
       action: 'query',
-      prop: 'coordinates',
+      prop: 'coordinates|revisions',
+      rvprop: 'content',
+      rvslots: 'main',
       titles: unique.join('|'),
       redirects: '1',
     }),
   )
   if (!response.ok) return []
   const data = (await response.json()) as {
-    query?: { pages?: Record<string, { title?: string; coordinates?: { lat: number; lon: number }[] }> }
+    query?: {
+      pages?: Record<
+        string,
+        {
+          title?: string
+          coordinates?: { lat: number; lon: number }[]
+          revisions?: { slots?: { main?: { '*'?: string } } }[]
+        }
+      >
+    }
   }
   return Object.values(data.query?.pages ?? {}).flatMap((page) => {
     const point = page.coordinates?.[0]
     const title = page.title ?? ''
+    const text = page.revisions?.[0]?.slots?.main?.['*'] ?? ''
     if (!point || !title.includes('古墳') || title.endsWith('古墳群')) return []
-    return [{ label: kofunChoiceLabel(title), lat: point.lat, lng: point.lon }]
+    return [{ label: labelFromWiki(title, text), lat: point.lat, lng: point.lon }]
   })
 }
 
