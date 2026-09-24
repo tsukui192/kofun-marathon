@@ -101,7 +101,10 @@ export function CoursePage({
               </div>
             </div>
             {loading && !wiki && <p className="muted">説明を読んでいます。</p>}
-            {wiki && (
+            {wiki && wiki.period === '特になし' && wiki.size === '特になし' && wiki.notes === '特になし' && (
+              <p>特になし</p>
+            )}
+            {wiki && (wiki.period !== '特になし' || wiki.size !== '特になし' || wiki.notes !== '特になし') && (
               <article className="card">
                 <h2>{wiki.title}</h2>
                 <p>
