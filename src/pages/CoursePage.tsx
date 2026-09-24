@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { KofunFacts } from '../components/KofunFacts.tsx'
 import { MapView } from '../components/MapView.tsx'
+import { kofunFromLabel } from '../lib/course.ts'
 import { knownNote } from '../data/notes.ts'
 import { fetchKofunInfo, type WikiSummary } from '../lib/api.ts'
 import { formatKm } from '../lib/geo.ts'
@@ -28,6 +30,7 @@ export function CoursePage({
   onSave,
   onRevise,
 }: CoursePageProps) {
+  const startKofun = kofunFromLabel(course.start.label)
   const [summaries, setSummaries] = useState<Record<string, WikiSummary>>({})
   const [loading, setLoading] = useState(true)
 
@@ -70,6 +73,12 @@ export function CoursePage({
           draggable={false}
         />
       </section>
+      {startKofun && (
+        <section className="group">
+          <p className="notice">起点は{startKofun.name}です。</p>
+          <KofunFacts name={startKofun.name} address={startKofun.address} />
+        </section>
+      )}
       <section className="group">
         <p className="notice">各古墳の説明は、下に出ています。</p>
         <p className="notice">回る古墳のチェックを変えると、道順が組み直されます。</p>

@@ -132,6 +132,14 @@ export function nearbyKofun(start: LatLng, radiusKm = 8, limit = 30): Kofun[] {
   return nearest(start, radiusKm, limit)
 }
 
+export function kofunFromLabel(label: string): { name: string; address: string } | null {
+  if (!label.includes('古墳')) return null
+  const parts = label.split(/\s+/).filter(Boolean)
+  const index = parts.findIndex((part) => part.includes('古墳'))
+  if (index < 0) return null
+  return { name: parts.slice(index).join(''), address: parts.slice(0, index).join(' ') }
+}
+
 export function kofunPlaces(query: string): PlaceHit[] {
   const trimmed = query.trim()
   if (trimmed.length < 2 || trimmed === '古墳') return []

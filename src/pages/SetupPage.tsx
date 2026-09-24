@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { KofunFacts } from '../components/KofunFacts.tsx'
 import { MapView } from '../components/MapView.tsx'
+import { kofunFromLabel } from '../lib/course.ts'
 import { nearbyKofun } from '../lib/course.ts'
 import { searchPlaces } from '../lib/api.ts'
 import type { CoursePlan, LatLng, PlaceHit, Visit } from '../types.ts'
@@ -41,7 +43,8 @@ export function SetupPage({
   const [searchError, setSearchError] = useState('')
   const [searching, setSearching] = useState(false)
   const [courseKind, setCourseKind] = useState<'loop' | 'wide' | 'out'>('loop')
-  const startIsKofun = Boolean(start && start.label.includes('古墳'))
+  const startKofun = start ? kofunFromLabel(start.label) : null
+  const startIsKofun = Boolean(startKofun)
   const center = useMemo(() => start ?? { lat: 34.564, lng: 135.487 }, [start])
   const nearby = useMemo(() => (start ? nearbyKofun(start) : []), [start])
 
@@ -129,6 +132,12 @@ export function SetupPage({
         </ul>
       )}
       <p className="muted">{start ? `起点: ${start.label}` : '起点が未設定です。地名か現在地を選んでください。'}</p>
+      {startKofun && (
+        <div className="group">
+          <p className="muted">起点の古墳</p>
+          <KofunFacts name={startKofun.name} address={startKofun.address} />
+        </div>
+      )}
       <p className="muted">起点は地図上でドラッグして動かせます。</p>
       <MapView
         center={center}
