@@ -72,13 +72,14 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         for (const stop of course.stops) {
           if (haversineKm(next, stop) > CHECK_KM || checkedIds.current.has(stop.id)) continue
           checkedIds.current.add(stop.id)
-          recordVisit({
+          const saved = recordVisit({
             id: stop.id,
             name: stop.name,
             address: stop.address,
             note: stop.note,
             visitedAt: new Date().toISOString(),
           })
+          if (!saved.ok) setGpsError(saved.message)
           onVisitedRef.current()
           setActive(stop)
           setChecked((current) => [...current, stop])

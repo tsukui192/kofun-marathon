@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
 import { orderLoop, rankStopSets, toStops } from './lib/course.ts'
-import { deleteCourse, loadCourses, loadVisits, saveCourse } from './lib/storage.ts'
+import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
@@ -23,6 +23,7 @@ export default function App() {
   const [targetKm, setTargetKm] = useState('10')
   const [choices, setChoices] = useState<CourseStop[]>(showSaitamaSample ? saitamaSample.stops : [])
   const [course, setCourse] = useState<CoursePlan | null>(showSaitamaSample ? saitamaSample : null)
+  const [person, setPerson] = useState(() => loadPerson())
   const [courses, setCourses] = useState<CoursePlan[]>(() => loadCourses())
   const [visits, setVisits] = useState<Visit[]>(() => loadVisits())
   const [busy, setBusy] = useState(false)
@@ -70,6 +71,10 @@ export default function App() {
   async function createCourse() {
     setError('')
     setSaveMessage('')
+    if (!person) {
+      setError('先に名前を入れて「この名前で使う」を押してください。')
+      return
+    }
     if (!start) {
       setError('起点を選んでください。')
       return
@@ -139,6 +144,20 @@ export default function App() {
     }
   }
 
+  function usePerson(name: string) {
+    const result = rememberPerson(name)
+    if (!result.ok) {
+      setError(result.message)
+      return
+    }
+    const next = name.trim()
+    setPerson(next)
+    setCourses(loadCourses(next))
+    setVisits(loadVisits(next))
+    setError('')
+    setSaveMessage('')
+  }
+
   function storeCourse() {
     if (!course) return
     const result = saveCourse(course)
@@ -151,7 +170,11 @@ export default function App() {
   }
 
   function removeCourse(id: string) {
-    deleteCourse(id)
+    const result = deleteCourse(id)
+    if (!result.ok) {
+      setError(result.message)
+      return
+    }
     setCourses(loadCourses())
   }
 
@@ -161,6 +184,7 @@ export default function App() {
         <SetupPage
           start={start}
           targetKm={targetKm}
+          person={person}
           courses={courses}
           visits={visits}
           busy={busy}
@@ -170,6 +194,7 @@ export default function App() {
             setError('')
           }}
           onTargetChange={setTargetKm}
+          onUsePerson={usePerson}
           onCreate={() => void createCourse()}
           onOpenCourse={(saved) => {
             setChoices(saved.stops)
@@ -188,7 +213,13 @@ export default function App() {
           busy={busy}
           error={error}
           saveMessage={saveMessage}
-          onRun={() => setPage('run')}
+          onRun={() => {
+            if (!loadPerson()) {
+              setSaveMessage('先に入力画面で名前を入れてから走ってください。')
+              return
+            }
+            setPage('run')
+          }}
           onBack={() => setPage('setup')}
           onSave={storeCourse}
           onRevise={(ids) => void reviseCourse(ids)}

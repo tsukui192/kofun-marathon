@@ -7,12 +7,14 @@ import type { CoursePlan, LatLng, PlaceHit, Visit } from '../types.ts'
 type SetupPageProps = {
   start: PlaceHit | null
   targetKm: string
+  person: string
   courses: CoursePlan[]
   visits: Visit[]
   busy: boolean
   error: string
   onStartChange: (place: PlaceHit) => void
   onTargetChange: (value: string) => void
+  onUsePerson: (name: string) => void
   onCreate: () => void
   onOpenCourse: (course: CoursePlan) => void
   onDeleteCourse: (id: string) => void
@@ -21,16 +23,19 @@ type SetupPageProps = {
 export function SetupPage({
   start,
   targetKm,
+  person,
   courses,
   visits,
   busy,
   error,
   onStartChange,
   onTargetChange,
+  onUsePerson,
   onCreate,
   onOpenCourse,
   onDeleteCourse,
 }: SetupPageProps) {
+  const [name, setName] = useState(person)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<PlaceHit[]>([])
   const [searchError, setSearchError] = useState('')
@@ -85,6 +90,18 @@ export function SetupPage({
         <p className="step">1 / 3</p>
         <h1>古墳マラソン</h1>
       </header>
+      <label>
+        あなたの名前
+        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="例: 山田" />
+      </label>
+      <button type="button" className="secondary" onClick={() => onUsePerson(name)}>
+        この名前で使う
+      </button>
+      <p className="muted">
+        {person
+          ? `${person} さんのコースと訪れた古墳だけを表示しています。別の人は名前を変えてください。`
+          : '名前を入れると、その人の記録だけがこのブラウザに残ります。'}
+      </p>
       <label>
         地名
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="堺市" />
