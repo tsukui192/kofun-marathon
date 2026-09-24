@@ -117,6 +117,28 @@ function fameScore(sentence: string) {
   return FAME_WORDS.reduce((score, [word, weight]) => score + (sentence.includes(word) ? weight : 0), 0)
 }
 
+function prosePlain(text: string) {
+  const leadStart = text.search(/\n'''/)
+  const lead = leadStart >= 0 ? text.slice(leadStart).split(/\n==/)[0] : ''
+  const overview = text.match(/==+\s*概要\s*==+\n([\s\S]*?)(?=\n==|$)/)?.[1] ?? ''
+  return stripWiki(`${lead}\n${overview}`)
+}
+
+function prosePeriod(text: string) {
+  const matched = prosePlain(text).match(
+    /[0-9]+世紀(?:末|初頭|前半|後半|中頃)?(?:から[0-9]+世紀(?:末|初頭|前半|後半|中頃)?)?/,
+  )
+  return matched?.[0] ?? ''
+}
+
+function proseSize(text: string) {
+  const plain = prosePlain(text)
+  const counts = plain.match(/(?:前方後円墳|円墳|方墳)[0-9]+基(?:、(?:前方後円墳|円墳|方墳)[0-9]+基)*/)
+  if (counts) return counts[0]
+  const length = plain.match(/全長[0-9.]+メートル|墳丘長[0-9.]+メートル|墳長[0-9.]+メートル/)
+  return length?.[0] ?? ''
+}
+
 function famousNotes(text: string) {
   const candidates = [wikiField(text, '特記事項'), wikiField(text, '出土品'), ...articleSentences(text)]
   const ranked = candidates
@@ -130,7 +152,8 @@ function famousNotes(text: string) {
     picked.push(item.sentence)
     if (picked.length === 2) break
   }
-  return picked.join('。')
+  if (picked.length > 0) return picked.join('。')
+  return articleSentences(text).find((sentence) => /消失|埋没|史跡|出土|指定|壁画|国宝/.test(sentence)) ?? ''
 }
 
 function scoreWikiTitle(title: string, name: string, city: string) {
@@ -159,11 +182,16 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
     const pageName = wikiField(page.text, '名称')
     const place = wikiField(page.text, '所在地')
     const nameMatches = page.title.startsWith(name) || pageName === name || page.text.includes(`'''${name}'''`)
-    const placeMatches = !city || place.includes(city) || page.title.includes(city)
+    const placeMatches =
+      !city || place.includes(city) || page.title.includes(city) || page.text.includes(city)
     if (!nameMatches || !placeMatches) continue
-    const period = wikiField(page.text, '築造年代') || wikiField(page.text, '築造時期')
+    const period = wikiField(page.text, '築造年代') || wikiField(page.text, '築造時期') || prosePeriod(page.text)
     const shape = wikiField(page.text, '形状')
-    const scale = wikiField(page.text, '規模') || wikiField(page.text, '墳長') || wikiField(page.text, '墳丘長')
+    const scale =
+      wikiField(page.text, '規模') ||
+      wikiField(page.text, '墳長') ||
+      wikiField(page.text, '墳丘長') ||
+      proseSize(page.text)
     const notes = famousNotes(page.text)
     return {
       title: page.title,
@@ -274,7 +302,10 @@ async function fetchWikidata(name: string): Promise<Pick<WikiSummary, 'period' |
     return value?.id ? [value.id] : []
   })
   const labels = await wikidataLabels([...kinds, ...heritage])
-  const shape = kinds.map((id) => labels.get(id) ?? '').find((label) => label.includes('墳')) ?? ''
+  const shape =
+    kinds
+      .map((id) => labels.get(id) ?? '')
+      .find((label) => /前方後円墳|円墳|方墳|上円下方墳/.test(label) && !label.endsWith('群')) ?? ''
   const meters = length?.unit?.endsWith('Q11573') ? Number(length.amount) : Number.NaN
   const designations = heritage.map((id) => labels.get(id) ?? '').filter(Boolean)
   const period = time?.time ? centuryLabel(time.time, time.precision ?? 9) : ''
