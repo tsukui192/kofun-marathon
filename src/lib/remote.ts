@@ -1,4 +1,5 @@
 import type { PlaceHit } from '../types.ts'
+import { haversineKm } from './geo.ts'
 
 export type WikiSummary = {
   title: string
@@ -478,15 +479,31 @@ function formatGsiTitle(title: string) {
   return title.replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0)).replace(/番地$/u, '')
 }
 
-async function addressAt(lat: number, lng: number) {
+async function municipalityAt(lat: number, lng: number) {
   const response = await fetch(
     `https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat}&lon=${lng}`,
   )
-  if (!response.ok) return ''
+  if (!response.ok) return null
   const data = (await response.json()) as { results?: { muniCd?: string; lv01Nm?: string } }
   const municipality = await municipalityName(data.results?.muniCd ?? '')
-  if (!municipality) return ''
-  return `${municipality.prefecture}${municipality.city}${data.results?.lv01Nm ?? ''}`
+  if (!municipality) return null
+  return { ...municipality, block: data.results?.lv01Nm ?? '' }
+}
+
+async function addressAt(lat: number, lng: number) {
+  const place = await municipalityAt(lat, lng)
+  if (!place) return ''
+  return `${place.prefecture}${place.city}${place.block}`
+}
+
+function stationGroups(stations: { title: string; lat: number; lng: number }[]) {
+  const groups: { title: string; lat: number; lng: number }[][] = []
+  for (const station of stations) {
+    const group = groups.find((items) => items[0].title === station.title && haversineKm(items[0], station) < 1)
+    if (group) group.push(station)
+    else groups.push([station])
+  }
+  return groups
 }
 
 export async function searchPlaces(query: string): Promise<PlaceHit[]> {
@@ -504,8 +521,24 @@ export async function searchPlaces(query: string): Promise<PlaceHit[]> {
     if (lat === undefined || lng === undefined || !title || /[「」()（）]/.test(title)) return []
     return [{ title, lat, lng }]
   })
+  const trimmed = query.trim()
+  if (trimmed.endsWith('駅')) {
+    const stations = candidates.filter((place) => place.title.endsWith('駅') && (place.title === trimmed || place.title.endsWith(trimmed)))
+    const hits = (
+      await Promise.all(
+        stationGroups(stations).map(async (group) => {
+          const station = group[0]
+          const area = await municipalityAt(station.lat, station.lng)
+          const label = area ? `${area.prefecture}${area.city} ${station.title}` : station.title
+          return { label, lat: station.lat, lng: station.lng }
+        }),
+      )
+    ).filter((place) => place.label)
+    const unique = hits.filter((place, index) => hits.findIndex((item) => item.label === place.label) === index)
+    if (unique.length > 0) return unique
+  }
   const chosen =
-    candidates.find((place) => place.title === query || place.title.endsWith(query)) ??
+    candidates.find((place) => place.title === trimmed || place.title.endsWith(trimmed)) ??
     candidates.find((place) => isStreetAddress(place.title)) ??
     candidates[0]
   if (!chosen) return []

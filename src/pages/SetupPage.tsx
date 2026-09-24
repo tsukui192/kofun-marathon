@@ -70,7 +70,7 @@ export function SetupPage({
       setHits(places)
       if (places.length === 0) {
         setSearchError('その地名は見つかりませんでした。')
-      } else {
+      } else if (places.length === 1) {
         onStartChange(places[0])
       }
     } catch (caught) {
@@ -114,6 +114,7 @@ export function SetupPage({
           今いる場所
         </button>
       </div>
+      {hits.length > 1 && <p className="muted">同じ名前が複数あります。起点にするものを選んでください。</p>}
       {hits.length > 0 && (
         <ul className="list">
           {hits.map((hit) => (
