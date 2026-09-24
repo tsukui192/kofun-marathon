@@ -93,8 +93,11 @@ export default function App() {
       let best: CoursePlan | null = null
       let bestSet: Kofun[] = []
       let bestGap = Number.POSITIVE_INFINITY
+      let sawRoute = false
       for (const set of sets) {
         const plan = await routeThrough(start, toStops(set), parsedKm)
+        sawRoute = true
+        if (plan.distanceKm - parsedKm >= 2) continue
         const gap = Math.abs(plan.distanceKm - parsedKm)
         if (gap < bestGap) {
           best = plan
@@ -104,7 +107,11 @@ export default function App() {
         if (parsedKm > 0 && gap / parsedKm <= 0.2) break
       }
       if (!best) {
-        setError('道順を作れませんでした。しばらくしてからもう一度試してください。')
+        setError(
+          sawRoute
+            ? '希望の距離より2km以上長いコースしか作れませんでした。距離を変えてもう一度試してください。'
+            : '道順を作れませんでした。しばらくしてからもう一度試してください。',
+        )
         return
       }
       setChoices(toStops(bestSet))
