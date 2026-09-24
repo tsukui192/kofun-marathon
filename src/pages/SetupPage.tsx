@@ -149,15 +149,6 @@ export function SetupPage({
         draggable
         onStartChange={moveStart}
       />
-      <label>
-        走りたい距離（km）
-        <input
-          inputMode="decimal"
-          value={targetKm}
-          onChange={(event) => onTargetChange(event.target.value)}
-        />
-      </label>
-      <p className="muted">出発した場所に戻る道を作り、その距離に近い古墳を勧めます。</p>
       {startIsKofun && (
         <div className="group">
           <p className="muted">起点が古墳です。コースの形を選んでください。</p>
@@ -172,6 +163,19 @@ export function SetupPage({
               行って帰りの一本道
             </button>
           </div>
+        </div>
+      )}
+      {(!startIsKofun || courseKind === 'loop') && (
+        <div className="group">
+          <label>
+            走りたい距離（km）
+            <input
+              inputMode="decimal"
+              value={targetKm}
+              onChange={(event) => onTargetChange(event.target.value)}
+            />
+          </label>
+          <p className="muted">出発した場所に戻る道を作り、その距離に近い古墳を勧めます。</p>
         </div>
       )}
       {(error || searchError) && <p className="error">{error || searchError}</p>}

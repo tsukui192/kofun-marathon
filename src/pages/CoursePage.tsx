@@ -61,7 +61,10 @@ export function CoursePage({
       <section className="group">
         <p className="distance">
           {formatKm(course.distanceKm)}
-          <span>希望 {formatKm(course.targetKm)} · 選んだ古墳の道のり</span>
+          <span>
+            {course.targetKm > 0 ? `希望 ${formatKm(course.targetKm)} · ` : ''}
+            選んだ古墳の道のり
+          </span>
         </p>
         <MapView
           center={course.start}

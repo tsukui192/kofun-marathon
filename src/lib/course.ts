@@ -94,13 +94,11 @@ function subsets(items: Kofun[]): Kofun[][] {
   return out
 }
 
-export function rankWideStopSets(start: LatLng, targetKm: number): Kofun[][] {
-  const radius = Math.min(30, Math.max(8, targetKm))
-  const pool = nearest(start, radius, 8)
+export function rankWideStopSets(start: LatLng): Kofun[][] {
+  const pool = nearest(start, 15, 8)
   if (pool.length === 0) return []
   return subsets(pool)
     .map((stops) => [...stops].sort((a, b) => bearing(start, a) - bearing(start, b)))
-    .filter((stops) => loopKm(start, stops) <= targetKm + 1.5)
     .sort((a, b) => loopKm(start, b) - loopKm(start, a))
     .slice(0, 3)
 }
