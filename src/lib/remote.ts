@@ -6,6 +6,7 @@ export type WikiSummary = {
   period: string
   size: string
   notes: string
+  sources: string[]
 }
 
 function cityFromAddress(address: string) {
@@ -170,6 +171,7 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
       period: period || '特になし',
       size: [shape, scale].filter(Boolean).join('、') || '特になし',
       notes: notes || '特になし',
+      sources: period || shape || scale || notes ? ['日本語版ウィキペディア'] : [],
     }
   }
   return {
@@ -178,7 +180,148 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
     period: '特になし',
     size: '特になし',
     notes: '特になし',
+    sources: [],
   }
+}
+
+const EMPTY_SUMMARY = (name: string): WikiSummary => ({
+  title: name,
+  url: '',
+  period: '特になし',
+  size: '特になし',
+  notes: '特になし',
+  sources: [],
+})
+
+function wikiApiUrl(params: Record<string, string>) {
+  const url = new URL('https://www.wikidata.org/w/api.php')
+  url.searchParams.set('origin', '*')
+  url.searchParams.set('format', 'json')
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
+  return url
+}
+
+function centuryLabel(time: string, precision: number) {
+  const year = Number(time.slice(1, 5))
+  if (!Number.isFinite(year) || year <= 0) return ''
+  if (precision <= 7) return `${Math.ceil(year / 100)}世紀`
+  if (precision === 8) return `${year}年代`
+  return `${year}年`
+}
+
+async function wikidataLabels(ids: string[]) {
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (unique.length === 0) return new Map<string, string>()
+  const response = await fetch(
+    wikiApiUrl({
+      action: 'wbgetentities',
+      ids: unique.join('|'),
+      props: 'labels',
+      languages: 'ja',
+    }),
+  )
+  if (!response.ok) return new Map<string, string>()
+  const data = (await response.json()) as {
+    entities?: Record<string, { labels?: { ja?: { value?: string } } }>
+  }
+  return new Map(
+    Object.entries(data.entities ?? {}).map(([id, entity]) => [id, entity.labels?.ja?.value ?? '']),
+  )
+}
+
+async function fetchWikidata(name: string): Promise<Pick<WikiSummary, 'period' | 'size' | 'notes' | 'url'> | null> {
+  const search = await fetch(
+    wikiApiUrl({
+      action: 'wbsearchentities',
+      search: name,
+      language: 'ja',
+      limit: '5',
+    }),
+  )
+  if (!search.ok) return null
+  const found = (await search.json()) as {
+    search?: { id: string; label?: string; description?: string; match?: { text?: string } }[]
+  }
+  const hit = (found.search ?? []).find((item) => {
+    const label = item.label ?? ''
+    const alias = item.match?.text ?? ''
+    const description = item.description ?? ''
+    const named = label === name || alias === name || label.includes(name) || alias.includes(name)
+    return named && /古墳|墳墓|陵|kofun|burial/i.test(`${label}${description}${alias}`)
+  })
+  if (!hit) return null
+  const entityResponse = await fetch(
+    wikiApiUrl({
+      action: 'wbgetentities',
+      ids: hit.id,
+      props: 'claims',
+      languages: 'ja',
+    }),
+  )
+  if (!entityResponse.ok) return null
+  const entity = (await entityResponse.json()) as {
+    entities?: Record<string, { claims?: Record<string, { mainsnak?: { datavalue?: { value?: unknown } } }[]> }>
+  }
+  const claims = entity.entities?.[hit.id]?.claims ?? {}
+  const time = claims.P571?.[0]?.mainsnak?.datavalue?.value as { time?: string; precision?: number } | undefined
+  const length = claims.P2043?.[0]?.mainsnak?.datavalue?.value as { amount?: string; unit?: string } | undefined
+  const kinds = (claims.P31 ?? []).flatMap((claim) => {
+    const value = claim.mainsnak?.datavalue?.value as { id?: string } | undefined
+    return value?.id ? [value.id] : []
+  })
+  const heritage = (claims.P1435 ?? []).flatMap((claim) => {
+    const value = claim.mainsnak?.datavalue?.value as { id?: string } | undefined
+    return value?.id ? [value.id] : []
+  })
+  const labels = await wikidataLabels([...kinds, ...heritage])
+  const shape = kinds.map((id) => labels.get(id) ?? '').find((label) => label.includes('墳')) ?? ''
+  const meters = length?.unit?.endsWith('Q11573') ? Number(length.amount) : Number.NaN
+  const designations = heritage.map((id) => labels.get(id) ?? '').filter(Boolean)
+  const period = time?.time ? centuryLabel(time.time, time.precision ?? 9) : ''
+  const size = [shape, Number.isFinite(meters) ? `墳丘長${Math.round(meters)}m` : ''].filter(Boolean).join('、')
+  const notes = designations.join('、')
+  if (!period && !size && !notes) return null
+  return {
+    period,
+    size,
+    notes,
+    url: `https://www.wikidata.org/wiki/${hit.id}`,
+  }
+}
+
+export async function fetchKofunInfo(name: string, address: string, localNote = ''): Promise<WikiSummary> {
+  let summary = EMPTY_SUMMARY(name)
+  try {
+    summary = await fetchWiki(name, address)
+  } catch {
+    summary = EMPTY_SUMMARY(name)
+  }
+  let data: Awaited<ReturnType<typeof fetchWikidata>> = null
+  if (summary.period === '特になし' || summary.size === '特になし' || summary.notes === '特になし') {
+    try {
+      data = await fetchWikidata(name)
+    } catch {
+      data = null
+    }
+  }
+  const sources = [...summary.sources]
+  if (data && summary.period === '特になし' && data.period) {
+    summary = { ...summary, period: data.period }
+    sources.push('Wikidata')
+  }
+  if (data && summary.size === '特になし' && data.size) {
+    summary = { ...summary, size: data.size }
+    if (!sources.includes('Wikidata')) sources.push('Wikidata')
+  }
+  if (summary.notes === '特になし' && data?.notes) {
+    summary = { ...summary, notes: data.notes }
+    if (!sources.includes('Wikidata')) sources.push('Wikidata')
+  } else if (summary.notes === '特になし' && localNote) {
+    summary = { ...summary, notes: localNote }
+    sources.push('アプリ内の説明')
+  }
+  if (!summary.url && data?.url) summary = { ...summary, url: data.url }
+  return { ...summary, sources }
 }
 
 let municipalityNames: Map<string, { prefecture: string; city: string }> | null = null

@@ -15,3 +15,7 @@ const NOTES: Record<string, string> = {
 export function noteFor(name: string): string {
   return NOTES[name] ?? '詳細は不明です。近くまで着くとチェックします。墳丘の中には案内しません。'
 }
+
+export function knownNote(name: string): string {
+  return NOTES[name] ?? ''
+}

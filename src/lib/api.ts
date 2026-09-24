@@ -1,1 +1,1 @@
-export { fetchOptimalLoop, fetchRoute, fetchWiki, searchPlaces, type WikiSummary } from './remote.ts'
+export { fetchKofunInfo, fetchOptimalLoop, fetchRoute, fetchWiki, searchPlaces, type WikiSummary } from './remote.ts'

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MapView } from '../components/MapView.tsx'
-import { fetchWiki, type WikiSummary } from '../lib/api.ts'
+import { knownNote } from '../data/notes.ts'
+import { fetchKofunInfo, type WikiSummary } from '../lib/api.ts'
 import { formatKm } from '../lib/geo.ts'
 import type { CoursePlan, CourseStop } from '../types.ts'
 
@@ -27,28 +28,26 @@ export function CoursePage({
   onSave,
   onRevise,
 }: CoursePageProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [wiki, setWiki] = useState<WikiSummary | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [summaries, setSummaries] = useState<Record<string, WikiSummary>>({})
+  const [loading, setLoading] = useState(true)
 
-  async function openStop(stop: CourseStop) {
-    setSelectedId(stop.id)
-    setWiki(null)
+  useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    try {
-      setWiki(await fetchWiki(stop.name, stop.address))
-    } catch {
-      setWiki({
-        title: stop.name,
-        url: '',
-        period: '特になし',
-        size: '特になし',
-        notes: '特になし',
-      })
-    } finally {
+    void Promise.all(
+      choices.map(async (stop) => {
+        const summary = await fetchKofunInfo(stop.name, stop.address, knownNote(stop.name))
+        return [stop.id, summary] as const
+      }),
+    ).then((rows) => {
+      if (cancelled) return
+      setSummaries(Object.fromEntries(rows))
       setLoading(false)
+    })
+    return () => {
+      cancelled = true
     }
-  }
+  }, [choices])
 
   return (
     <section className="page course-page">
@@ -69,16 +68,16 @@ export function CoursePage({
           line={course.line}
           user={null}
           draggable={false}
-          onStopClick={(stop) => void openStop(stop)}
         />
       </section>
       <section className="group">
-        <p className="notice">古墳名を押すと説明が出ます。</p>
+        <p className="notice">各古墳の説明は、下に出ています。</p>
         <p className="notice">回る古墳のチェックを変えると、道順が組み直されます。</p>
       </section>
       <ol className="list">
         {choices.map((stop) => {
           const picked = course.stops.some((item) => item.id === stop.id)
+          const wiki = summaries[stop.id]
           return (
           <li key={stop.id} className="group">
             <div className="group">
@@ -96,13 +95,13 @@ export function CoursePage({
                 />
                 この古墳を回る
               </label>
-              <button type="button" className="text-button" onClick={() => void openStop(stop)}>
+              <div className="text-button">
                 <strong>{stop.name}</strong>
                 <span className="muted">{stop.address}</span>
-              </button>
+              </div>
             </div>
-            {selectedId === stop.id && loading && <p className="muted">要約を読んでいます。</p>}
-            {selectedId === stop.id && wiki && (
+            {loading && !wiki && <p className="muted">説明を読んでいます。</p>}
+            {wiki && (
               <article className="card">
                 <h2>{wiki.title}</h2>
                 <p>
@@ -114,12 +113,14 @@ export function CoursePage({
                 <p>
                   <strong>特記事項</strong> {wiki.notes}
                 </p>
-                {wiki.url && (
+                {wiki.sources.length > 0 && (
                   <p className="muted">
-                    日本語版ウィキペディアの記事に基づきます。
-                    <a href={wiki.url} target="_blank" rel="noreferrer">
-                      記事を開く
-                    </a>
+                    {wiki.sources.join('、')}に基づきます。
+                    {wiki.url && (
+                      <a href={wiki.url} target="_blank" rel="noreferrer">
+                        出典を開く
+                      </a>
+                    )}
                   </p>
                 )}
               </article>
