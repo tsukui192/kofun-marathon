@@ -517,6 +517,11 @@ function wikiLinkTitles(text: string) {
   return titles
 }
 
+function nameMatchesQuery(title: string, query: string) {
+  const base = title.replace(/\s*\([^)]*\)\s*$/, '')
+  return base === query || base.includes(query)
+}
+
 function kofunChoiceLabel(title: string) {
   const named = title.match(/^(.+) \((.+)\)$/)
   return named ? `${named[2]} ${named[1]}` : title
@@ -566,7 +571,7 @@ async function wikiGroupKofun(query: string): Promise<PlaceHit[]> {
     if (!text.includes('曖昧さ回避') && !text.includes('{{aimai}}') && !text.includes('{{Aimai}}')) continue
     for (const linked of wikiLinkTitles(text)) {
       if (linked.endsWith('古墳群')) groups.add(linked)
-      else titles.add(linked)
+      else if (nameMatchesQuery(linked, trimmed)) titles.add(linked)
     }
   }
   for (const group of groups) {
@@ -578,7 +583,7 @@ async function wikiGroupKofun(query: string): Promise<PlaceHit[]> {
       if (!mentioned && !text.includes(trimmed)) continue
     }
     for (const linked of wikiLinkTitles(members || text)) {
-      if (!linked.endsWith('古墳群')) titles.add(linked)
+      if (!linked.endsWith('古墳群') && nameMatchesQuery(linked, trimmed)) titles.add(linked)
     }
   }
   return wikiCoordinates([...titles])
