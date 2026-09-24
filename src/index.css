@@ -7,6 +7,13 @@
 
 * { box-sizing: border-box; }
 
+html, body {
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+}
+
 body {
   margin: 0;
 }
@@ -16,9 +23,11 @@ button, input {
 }
 
 main {
+  width: 100%;
   max-width: 440px;
   margin: 0 auto;
   min-height: 100vh;
+  overflow-x: clip;
   background: #f7f3eb;
 }
 
@@ -26,6 +35,8 @@ main {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
   padding: 16px 16px 32px;
 }
 
@@ -62,12 +73,15 @@ label {
 }
 
 input {
+  width: 100%;
+  max-width: 100%;
   height: 44px;
   border: 1px solid #ddd4c6;
   border-radius: 10px;
   padding: 0 12px;
   background: #fffdf8;
   color: inherit;
+  font-size: 16px;
 }
 
 button {
@@ -93,6 +107,8 @@ button.secondary {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .list {
@@ -148,10 +164,18 @@ button.secondary {
 }
 
 .map {
+  width: 100%;
+  max-width: 100%;
   height: 280px;
   border-radius: 12px;
   overflow: hidden;
   background: #e7e0d4;
+}
+
+.leaflet-container {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .start-pin {
@@ -195,5 +219,9 @@ button.secondary {
 }
 
 .card h2 { margin-bottom: 6px; }
+.card p, .muted, .credit, .notice {
+  overflow-wrap: anywhere;
+}
+
 .card p { margin: 0 0 6px; }
 .card a { color: #6b4423; }
