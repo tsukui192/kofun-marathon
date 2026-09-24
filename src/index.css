@@ -119,8 +119,18 @@ button.secondary {
   gap: 2px;
 }
 
-.text-button[aria-pressed='true'] {
-  color: #6b4423;
+.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
 }
 
 .map {

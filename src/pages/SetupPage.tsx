@@ -1,29 +1,32 @@
 import { useMemo, useState } from 'react'
 import { MapView } from '../components/MapView.tsx'
-import { loopKm, nearbyKofun, orderLoop } from '../lib/course.ts'
+import { nearbyKofun } from '../lib/course.ts'
 import { searchPlaces } from '../lib/api.ts'
-import { formatKm } from '../lib/geo.ts'
-import type { CoursePlan, Kofun, LatLng, PlaceHit, Visit } from '../types.ts'
+import type { CoursePlan, LatLng, PlaceHit, Visit } from '../types.ts'
 
 type SetupPageProps = {
   start: PlaceHit | null
+  targetKm: string
   courses: CoursePlan[]
   visits: Visit[]
   busy: boolean
   error: string
   onStartChange: (place: PlaceHit) => void
-  onCreate: (selected: Kofun[]) => void
+  onTargetChange: (value: string) => void
+  onCreate: () => void
   onOpenCourse: (course: CoursePlan) => void
   onDeleteCourse: (id: string) => void
 }
 
 export function SetupPage({
   start,
+  targetKm,
   courses,
   visits,
   busy,
   error,
   onStartChange,
+  onTargetChange,
   onCreate,
   onOpenCourse,
   onDeleteCourse,
@@ -32,17 +35,8 @@ export function SetupPage({
   const [hits, setHits] = useState<PlaceHit[]>([])
   const [searchError, setSearchError] = useState('')
   const [searching, setSearching] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const center = useMemo(() => start ?? { lat: 34.564, lng: 135.487 }, [start])
   const nearby = useMemo(() => (start ? nearbyKofun(start) : []), [start])
-  const selected = useMemo(
-    () => nearby.filter((kofun) => selectedIds.includes(kofun.id)),
-    [nearby, selectedIds],
-  )
-  const estimateKm = useMemo(
-    () => (start && selected.length > 0 ? loopKm(start, orderLoop(start, selected)) : null),
-    [start, selected],
-  )
 
   async function locate() {
     setSearchError('')
@@ -85,12 +79,6 @@ export function SetupPage({
     onStartChange({ ...point, label: '地図で選んだ地点' })
   }
 
-  function toggleKofun(id: string) {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    )
-  }
-
   return (
     <section className="page">
       <header>
@@ -126,46 +114,24 @@ export function SetupPage({
         center={center}
         start={start}
         stops={[]}
-        nearby={nearby.map((kofun) => ({ ...kofun, selected: selectedIds.includes(kofun.id) }))}
+        nearby={nearby.map((kofun) => ({ ...kofun, selected: false }))}
         line={[]}
         user={null}
         draggable
         onStartChange={moveStart}
-        onNearbyClick={toggleKofun}
       />
-      <h2>回りたい古墳</h2>
-      {!start ? (
-        <p className="muted">起点を選ぶと、近くの古墳が出ます。</p>
-      ) : nearby.length === 0 ? (
-        <p className="muted">この近くには古墳が見つかりませんでした。</p>
-      ) : (
-        <ul className="list">
-          {nearby.map((kofun) => {
-            const picked = selectedIds.includes(kofun.id)
-            return (
-              <li key={kofun.id}>
-                <button
-                  type="button"
-                  className="text-button"
-                  aria-pressed={picked}
-                  onClick={() => toggleKofun(kofun.id)}
-                >
-                  <strong>{picked ? '選択中 · ' : ''}{kofun.name}</strong>
-                  <span className="muted">{kofun.address}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-      <p className="muted">
-        {estimateKm === null
-          ? '地図か一覧から、回りたい古墳を選んでください。選んだ古墳を最短の順で回り、起点に戻ります。'
-          : `選んだ ${selected.length} 基の目安は ${formatKm(estimateKm)} です。道に沿った距離はコース作成後に出ます。`}
-      </p>
+      <label>
+        走りたい距離（km）
+        <input
+          inputMode="decimal"
+          value={targetKm}
+          onChange={(event) => onTargetChange(event.target.value)}
+        />
+      </label>
+      <p className="muted">出発した場所に戻る周回を作り、その距離に近い古墳を勧めます。</p>
       {(error || searchError) && <p className="error">{error || searchError}</p>}
-      <button type="button" onClick={() => onCreate(selected)} disabled={busy || !start || selected.length === 0}>
-        {busy ? 'コースを作成中' : '最適ルートを作る'}
+      <button type="button" onClick={onCreate} disabled={busy || !start}>
+        {busy ? 'コースを作成中' : 'コースを作る'}
       </button>
 
       <h2>保存したコース</h2>

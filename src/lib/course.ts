@@ -1,7 +1,7 @@
 import kofunData from '../data/kofun.json'
 import { noteFor } from '../data/notes.ts'
 import type { CourseStop, Kofun, LatLng } from '../types.ts'
-import { haversineKm } from './geo.ts'
+import { bearing, haversineKm } from './geo.ts'
 
 const KOFUN = kofunData as Kofun[]
 const ROAD_FACTOR = 1.35
@@ -78,6 +78,32 @@ export function orderLoop<T extends LatLng>(start: LatLng, stops: T[]): T[] {
   }
   order.reverse()
   return order.map((index) => stops[index])
+}
+
+function subsets(items: Kofun[]): Kofun[][] {
+  const out: Kofun[][] = []
+  const count = items.length
+  const masks = 1 << count
+  for (let mask = 1; mask < masks; mask += 1) {
+    const chosen: Kofun[] = []
+    for (let index = 0; index < count; index += 1) {
+      if (mask & (1 << index)) chosen.push(items[index])
+    }
+    if (chosen.length <= 4) out.push(chosen)
+  }
+  return out
+}
+
+export function rankStopSets(start: LatLng, targetKm: number): Kofun[][] {
+  const radius = Math.min(30, Math.max(2, targetKm * 0.7))
+  let pool = nearest(start, radius, 8)
+  if (pool.length === 0) pool = nearest(start, Math.min(40, Math.max(radius, targetKm)), 8)
+  if (pool.length === 0) return []
+
+  return subsets(pool)
+    .map((stops) => [...stops].sort((a, b) => bearing(start, a) - bearing(start, b)))
+    .sort((a, b) => Math.abs(loopKm(start, a) - targetKm) - Math.abs(loopKm(start, b) - targetKm))
+    .slice(0, 3)
 }
 
 export function toStops(kofun: Kofun[]): CourseStop[] {

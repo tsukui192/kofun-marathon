@@ -6,13 +6,27 @@ import type { CoursePlan, CourseStop } from '../types.ts'
 
 type CoursePageProps = {
   course: CoursePlan
+  choices: CourseStop[]
+  busy: boolean
+  error: string
   saveMessage: string
   onRun: () => void
   onBack: () => void
   onSave: () => void
+  onRevise: (ids: string[]) => void
 }
 
-export function CoursePage({ course, saveMessage, onRun, onBack, onSave }: CoursePageProps) {
+export function CoursePage({
+  course,
+  choices,
+  busy,
+  error,
+  saveMessage,
+  onRun,
+  onBack,
+  onSave,
+  onRevise,
+}: CoursePageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [wiki, setWiki] = useState<WikiSummary | null>(null)
   const [wikiError, setWikiError] = useState('')
@@ -42,7 +56,7 @@ export function CoursePage({ course, saveMessage, onRun, onBack, onSave }: Cours
       </header>
       <p className="distance">
         {formatKm(course.distanceKm)}
-        <span>選んだ古墳を最短で回る道のり</span>
+        <span>希望 {formatKm(course.targetKm)} · 選んだ古墳の道のり</span>
       </p>
       <MapView
         center={course.start}
@@ -54,10 +68,26 @@ export function CoursePage({ course, saveMessage, onRun, onBack, onSave }: Cours
         draggable={false}
         onStopClick={(stop) => void openStop(stop)}
       />
-      <p className="muted">古墳を押すと、ウィキペディアの要約が出ます。</p>
+      <p className="muted">古墳名を押すと説明が出ます。回る古墳のチェックを変えると、道順が組み直されます。</p>
       <ol className="list">
-        {course.stops.map((stop) => (
+        {choices.map((stop) => {
+          const picked = course.stops.some((item) => item.id === stop.id)
+          return (
           <li key={stop.id}>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={picked}
+                disabled={busy}
+                onChange={() => {
+                  const next = picked
+                    ? course.stops.filter((item) => item.id !== stop.id).map((item) => item.id)
+                    : [...course.stops.map((item) => item.id), stop.id]
+                  onRevise(next)
+                }}
+              />
+              この古墳を回る
+            </label>
             <button type="button" className="text-button" onClick={() => void openStop(stop)}>
               <strong>{stop.name}</strong>
               <span className="muted">{stop.address}</span>
@@ -85,8 +115,11 @@ export function CoursePage({ course, saveMessage, onRun, onBack, onSave }: Cours
               </article>
             )}
           </li>
-        ))}
+          )
+        })}
       </ol>
+      {busy && <p className="muted">選んだ古墳で道順を作り直しています。</p>}
+      {error && <p className="error">{error}</p>}
       <p className="muted">道に沿った徒歩ルートです。直線ではありません。</p>
       {saveMessage && (
         <p className={saveMessage === '保存しました。' ? 'muted' : 'error'}>{saveMessage}</p>
