@@ -1,0 +1,160 @@
+:root {
+  color: #241c14;
+  background: #f3eee6;
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  line-height: 1.5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+}
+
+button, input {
+  font: inherit;
+}
+
+main {
+  max-width: 440px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: #f7f3eb;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 32px;
+}
+
+h1, h2 {
+  margin: 0;
+  font-weight: 500;
+}
+
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.1rem; margin-top: 8px; }
+
+.step, .muted, .credit {
+  margin: 0;
+  color: #6d6256;
+  font-size: 0.92rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #5c5348;
+  font-size: 0.92rem;
+}
+
+input {
+  height: 44px;
+  border: 1px solid #ddd4c6;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fffdf8;
+  color: inherit;
+}
+
+button {
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #6b4423;
+  color: #fffdf8;
+  padding: 0 14px;
+}
+
+button:disabled {
+  opacity: 0.55;
+}
+
+button.secondary {
+  background: transparent;
+  color: #241c14;
+  border: 1px solid #ddd4c6;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list li {
+  background: #fffdf8;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.split {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-button {
+  height: auto;
+  background: transparent;
+  color: #241c14;
+  text-align: left;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.map {
+  height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e7e0d4;
+}
+
+.start-pin {
+  background: #6b4423;
+  border: 2px solid #fffdf8;
+  border-radius: 50%;
+}
+
+.distance {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.distance span {
+  display: block;
+  margin-top: 2px;
+  color: #6d6256;
+  font-size: 0.92rem;
+}
+
+.error {
+  margin: 0;
+  color: #8a2e2e;
+}
+
+.card {
+  background: #fffdf8;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.card h2 { margin-bottom: 6px; }
+.card p { margin: 0 0 6px; }
+.card a { color: #6b4423; }
