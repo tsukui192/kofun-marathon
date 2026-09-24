@@ -14,6 +14,10 @@ function cityFromAddress(address: string) {
   return tokens.find((token) => /[市区町村]$/.test(token) && !/[都道府県]$/.test(token)) ?? ''
 }
 
+function prefectureFromAddress(address: string) {
+  return address.split(/\s+/).find((token) => /[都道府県]$/.test(token)) ?? ''
+}
+
 function stripWiki(value: string) {
   return value
     .replace(/<ref[^>]*\/>/g, '')
@@ -156,6 +160,44 @@ function famousNotes(text: string) {
   return articleSentences(text).find((sentence) => /消失|埋没|史跡|出土|指定|壁画|国宝/.test(sentence)) ?? ''
 }
 
+function periodIn(sentence: string) {
+  const matched = sentence.match(
+    /[0-9]+世紀(?:末|初頭|前半|後半|中頃)?頃?(?:から[0-9]+世紀(?:末|初頭|前半|後半|中頃)?頃?)?/,
+  )
+  return matched?.[0] ?? ''
+}
+
+function sizeIn(sentence: string) {
+  const shape = sentence.match(/帆立貝(?:形|型)の前方後円墳|帆立貝(?:形|型)|前方後円墳|前方後方墳|上円下方墳|円墳|方墳/)
+  const length = sentence.match(/(?:全長|墳丘長|墳長)約?[0-9.]+メートル/)
+  return [shape?.[0], length?.[0]].filter(Boolean).join('、')
+}
+
+function mentionSentences(text: string, name: string) {
+  return stripWiki(text)
+    .split('。')
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.includes(name) && !sentence.includes('{{') && sentence.length >= name.length + 4)
+}
+
+function noteFromMention(sentence: string, name: string, period: string, size: string) {
+  let head = sentence.split(name)[0] ?? ''
+  for (const part of [period, size]) {
+    if (part) head = head.replace(part, '')
+  }
+  head = head
+    .replace(/である|にあたる|現在の|続いて|築造される|築造された/g, '')
+    .replace(/[、\s]+/g, '、')
+    .replace(/^、+|、+$/g, '')
+    .replace(/[にでへと]+$/g, '')
+  if (head.length > 36) head = head.slice(-36).replace(/^[^、]*、/, '')
+  return head.length >= 8 ? head : ''
+}
+
+function hasWikiFacts(summary: WikiSummary) {
+  return summary.period !== '特になし' || summary.size !== '特になし' || summary.notes !== '特になし'
+}
+
 function scoreWikiTitle(title: string, name: string, city: string) {
   if (city && title === `${name} (${city})`) return 5
   if (title === name) return 4
@@ -175,7 +217,9 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
   const titles = [...hits.map((hit) => hit.title)]
   if (!titles.includes(name)) titles.unshift(name)
   if (city && !titles.includes(`${name} (${city})`)) titles.unshift(`${name} (${city})`)
-  const ordered = titles.sort((a, b) => scoreWikiTitle(b, name, city) - scoreWikiTitle(a, name, city))
+  const ordered = titles
+    .filter((title) => title.includes(name))
+    .sort((a, b) => scoreWikiTitle(b, name, city) - scoreWikiTitle(a, name, city))
   for (const title of ordered) {
     const page = await wikiText(title)
     if (!page) continue
@@ -193,7 +237,7 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
       wikiField(page.text, '墳丘長') ||
       proseSize(page.text)
     const notes = famousNotes(page.text)
-    return {
+    const summary: WikiSummary = {
       title: page.title,
       url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
       period: period || '特になし',
@@ -201,7 +245,10 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
       notes: notes || '特になし',
       sources: period || shape || scale || notes ? ['日本語版ウィキペディア'] : [],
     }
+    if (hasWikiFacts(summary)) return summary
   }
+  const mentioned = await fetchMention(name, city, prefectureFromAddress(address))
+  if (mentioned) return mentioned
   return {
     title: name,
     url: '',
@@ -210,6 +257,40 @@ export async function fetchWiki(name: string, address: string): Promise<WikiSumm
     notes: '特になし',
     sources: [],
   }
+}
+
+async function fetchMention(name: string, city: string, prefecture: string): Promise<WikiSummary | null> {
+  let hits: { title: string }[] = []
+  try {
+    hits = await wikiSearch(name)
+  } catch {
+    return null
+  }
+  const titles = hits
+    .map((hit) => hit.title)
+    .filter((title) => title !== name && !title.startsWith(`${name} (`))
+    .slice(0, 4)
+  for (const title of titles) {
+    const page = await wikiText(title)
+    if (!page) continue
+    if (city && !page.text.includes(city)) continue
+    if (!city && prefecture && !page.text.includes(prefecture)) continue
+    const ranked = mentionSentences(page.text, name)
+      .map((sentence) => ({ sentence, period: periodIn(sentence), size: sizeIn(sentence) }))
+      .sort((a, b) => Number(Boolean(b.period)) + Number(Boolean(b.size)) - (Number(Boolean(a.period)) + Number(Boolean(a.size))))
+    const picked = ranked.find((item) => item.period || item.size)
+    if (!picked) continue
+    const notes = noteFromMention(picked.sentence, name, picked.period, picked.size)
+    return {
+      title: name,
+      url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
+      period: picked.period || '特になし',
+      size: picked.size || '特になし',
+      notes: notes || '特になし',
+      sources: ['日本語版ウィキペディア'],
+    }
+  }
+  return null
 }
 
 const EMPTY_SUMMARY = (name: string): WikiSummary => ({
