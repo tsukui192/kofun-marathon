@@ -235,6 +235,37 @@ export async function searchPlaces(query: string): Promise<PlaceHit[]> {
   return label ? [{ label, lat: chosen.lat, lng: chosen.lng }] : []
 }
 
+export async function fetchOptimalLoop(coordinates: [number, number][]): Promise<{
+  distanceMeters: number
+  line: [number, number][]
+  order: number[]
+}> {
+  const path = coordinates.map(([lng, lat]) => `${lng},${lat}`).join(';')
+  const response = await fetch(
+    `https://router.project-osrm.org/trip/v1/foot/${path}?roundtrip=true&source=first&overview=full&geometries=geojson`,
+  )
+  if (!response.ok) throw new Error('道順を作れませんでした。しばらくしてからもう一度試してください。')
+  const data = (await response.json()) as {
+    code?: string
+    trips?: { distance: number; geometry: { coordinates: [number, number][] } }[]
+    waypoints?: { waypoint_index: number }[]
+  }
+  const trip = data.trips?.[0]
+  const waypoints = data.waypoints ?? []
+  if (data.code !== 'Ok' || !trip || waypoints.length !== coordinates.length) {
+    throw new Error('道順を作れませんでした。しばらくしてからもう一度試してください。')
+  }
+  const order = waypoints
+    .map((waypoint, index) => ({ index, place: waypoint.waypoint_index }))
+    .sort((a, b) => a.place - b.place)
+    .map((item) => item.index)
+  return {
+    distanceMeters: trip.distance,
+    line: trip.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+    order,
+  }
+}
+
 export async function fetchRoute(coordinates: [number, number][]): Promise<{
   distanceMeters: number
   line: [number, number][]

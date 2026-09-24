@@ -119,6 +119,10 @@ button.secondary {
   gap: 2px;
 }
 
+.text-button[aria-pressed='true'] {
+  color: #6b4423;
+}
+
 .map {
   height: 280px;
   border-radius: 12px;

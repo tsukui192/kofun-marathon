@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CourseStop, LatLng } from '../types.ts'
 
+export type MapNearby = LatLng & {
+  id: string
+  name: string
+  selected: boolean
+}
+
 type MapViewProps = {
   center: LatLng
   start: LatLng | null
   stops: CourseStop[]
-  nearby: LatLng[]
+  nearby: MapNearby[]
   line: [number, number][]
   user: LatLng | null
   draggable: boolean
   onStartChange?: (point: LatLng) => void
   onStopClick?: (stop: CourseStop) => void
+  onNearbyClick?: (id: string) => void
 }
 
 export function MapView({
@@ -23,16 +30,19 @@ export function MapView({
   draggable,
   onStartChange,
   onStopClick,
+  onNearbyClick,
 }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const layerRef = useRef<import('leaflet').LayerGroup | null>(null)
   const onStartChangeRef = useRef(onStartChange)
   const onStopClickRef = useRef(onStopClick)
+  const onNearbyClickRef = useRef(onNearbyClick)
   const initialCenter = useRef(center)
   const [ready, setReady] = useState(false)
   onStartChangeRef.current = onStartChange
   onStopClickRef.current = onStopClick
+  onNearbyClickRef.current = onNearbyClick
 
   useEffect(() => {
     let cancelled = false
@@ -70,12 +80,17 @@ export function MapView({
         leaflet.polyline(line, { color: '#2f6f4e', weight: 5 }).addTo(layers)
       }
       for (const point of nearby) {
-        leaflet.circleMarker([point.lat, point.lng], {
-          radius: 4,
-          color: '#8a5a2a',
-          weight: 1,
-          fillOpacity: 0.7,
-        }).addTo(layers)
+        leaflet
+          .circleMarker([point.lat, point.lng], {
+            radius: point.selected ? 9 : 7,
+            color: '#6b4423',
+            fillColor: point.selected ? '#e7c7a1' : '#fffdf8',
+            fillOpacity: 1,
+            weight: 2,
+          })
+          .bindTooltip(point.selected ? `${point.name}（選択中）` : point.name)
+          .on('click', () => onNearbyClickRef.current?.(point.id))
+          .addTo(layers)
       }
       for (const stop of stops) {
         leaflet.circleMarker([stop.lat, stop.lng], {

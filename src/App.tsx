@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
-import { fetchRoute } from './lib/api.ts'
-import { rankStopSets, toStops } from './lib/course.ts'
+import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
+import { orderLoop, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadVisits, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
-import type { CoursePlan, PlaceHit, Visit } from './types.ts'
+import type { CoursePlan, Kofun, PlaceHit, Visit } from './types.ts'
 
 type Page = 'setup' | 'course' | 'run'
 
@@ -20,7 +20,6 @@ const showSaitamaSample = new URLSearchParams(window.location.search).get('sampl
 export default function App() {
   const [page, setPage] = useState<Page>(showSaitamaSample ? 'run' : 'setup')
   const [start, setStart] = useState<PlaceHit | null>(null)
-  const [targetKm, setTargetKm] = useState('10')
   const [course, setCourse] = useState<CoursePlan | null>(showSaitamaSample ? saitamaSample : null)
   const [courses, setCourses] = useState<CoursePlan[]>(() => loadCourses())
   const [visits, setVisits] = useState<Visit[]>(() => loadVisits())
@@ -30,59 +29,54 @@ export default function App() {
 
   const refreshVisits = useCallback(() => setVisits(loadVisits()), [])
 
-  const parsedKm = useMemo(() => Number(targetKm), [targetKm])
-
-  async function createCourse() {
+  async function createCourse(selected: Kofun[]) {
     setError('')
     setSaveMessage('')
     if (!start) {
       setError('起点を選んでください。')
       return
     }
-    if (!Number.isFinite(parsedKm) || parsedKm < 1 || parsedKm > 50) {
-      setError('距離は1から50のkmで入力してください。')
+    if (selected.length === 0) {
+      setError('回りたい古墳を選んでください。')
+      return
+    }
+    if (selected.length > 12) {
+      setError('一度に選べる古墳は12基までです。')
       return
     }
     setBusy(true)
     try {
-      const sets = rankStopSets(start, parsedKm)
-      if (sets.length === 0) {
-        setError('この近くには、コースにできる古墳が見つかりませんでした。')
-        return
-      }
-      let best: CoursePlan | null = null
-      let bestGap = Number.POSITIVE_INFINITY
-      for (const set of sets) {
-        const stops = toStops(set)
-        const coordinates: [number, number][] = [
+      const coordinates: [number, number][] = [
+        [start.lng, start.lat],
+        ...selected.map((kofun) => [kofun.lng, kofun.lat] as [number, number]),
+      ]
+      const localOrder = orderLoop(start, selected)
+      let stops = toStops(localOrder)
+      let route: { distanceMeters: number; line: [number, number][] }
+      try {
+        const optimal = await fetchOptimalLoop(coordinates)
+        const ordered = optimal.order.filter((index) => index > 0).map((index) => selected[index - 1])
+        if (ordered.length !== selected.length) throw new Error('順序を確定できませんでした。')
+        stops = toStops(ordered)
+        route = optimal
+      } catch {
+        route = await fetchRoute([
           [start.lng, start.lat],
-          ...stops.map((stop) => [stop.lng, stop.lat] as [number, number]),
+          ...localOrder.map((kofun) => [kofun.lng, kofun.lat] as [number, number]),
           [start.lng, start.lat],
-        ]
-        const route = await fetchRoute(coordinates)
-        const distanceKm = route.distanceMeters / 1000
-        const gap = Math.abs(distanceKm - parsedKm)
-        const plan: CoursePlan = {
-          id: crypto.randomUUID(),
-          title: `${shortPlace(start.label)} · ${distanceKm.toFixed(1)}km`,
-          createdAt: new Date().toISOString(),
-          targetKm: parsedKm,
-          distanceKm,
-          start,
-          stops,
-          line: route.line,
-        }
-        if (gap < bestGap) {
-          best = plan
-          bestGap = gap
-        }
-        if (parsedKm > 0 && gap / parsedKm <= 0.2) break
+        ])
       }
-      if (!best) {
-        setError('道順を作れませんでした。しばらくしてからもう一度試してください。')
-        return
-      }
-      setCourse(best)
+      const distanceKm = route.distanceMeters / 1000
+      setCourse({
+        id: crypto.randomUUID(),
+        title: `${shortPlace(start.label)} · ${distanceKm.toFixed(1)}km`,
+        createdAt: new Date().toISOString(),
+        targetKm: distanceKm,
+        distanceKm,
+        start,
+        stops,
+        line: route.line,
+      })
       setPage('course')
     } catch (caught) {
       setError(
@@ -116,7 +110,6 @@ export default function App() {
       {page === 'setup' && (
         <SetupPage
           start={start}
-          targetKm={targetKm}
           courses={courses}
           visits={visits}
           busy={busy}
@@ -125,8 +118,7 @@ export default function App() {
             setStart(place)
             setError('')
           }}
-          onTargetChange={setTargetKm}
-          onCreate={() => void createCourse()}
+          onCreate={(selected) => void createCourse(selected)}
           onOpenCourse={(saved) => {
             setCourse(saved)
             setSaveMessage('')

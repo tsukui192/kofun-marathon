@@ -42,7 +42,7 @@ export function CoursePage({ course, saveMessage, onRun, onBack, onSave }: Cours
       </header>
       <p className="distance">
         {formatKm(course.distanceKm)}
-        <span>希望 {formatKm(course.targetKm)}</span>
+        <span>選んだ古墳を最短で回る道のり</span>
       </p>
       <MapView
         center={course.start}
