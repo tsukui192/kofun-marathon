@@ -51,49 +51,56 @@ export function CoursePage({
   }
 
   return (
-    <section className="page">
+    <section className="page course-page">
       <header>
         <p className="step">2 / 3</p>
         <h1>周回コース</h1>
       </header>
-      <p className="distance">
-        {formatKm(course.distanceKm)}
-        <span>希望 {formatKm(course.targetKm)} · 選んだ古墳の道のり</span>
-      </p>
-      <MapView
-        center={course.start}
-        start={course.start}
-        stops={course.stops}
-        nearby={[]}
-        line={course.line}
-        user={null}
-        draggable={false}
-        onStopClick={(stop) => void openStop(stop)}
-      />
-      <p className="notice">古墳名を押すと説明が出ます。回る古墳のチェックを変えると、道順が組み直されます。</p>
+      <section className="group">
+        <p className="distance">
+          {formatKm(course.distanceKm)}
+          <span>希望 {formatKm(course.targetKm)} · 選んだ古墳の道のり</span>
+        </p>
+        <MapView
+          center={course.start}
+          start={course.start}
+          stops={course.stops}
+          nearby={[]}
+          line={course.line}
+          user={null}
+          draggable={false}
+          onStopClick={(stop) => void openStop(stop)}
+        />
+      </section>
+      <section className="group">
+        <p className="notice">古墳名を押すと説明が出ます。</p>
+        <p className="notice">回る古墳のチェックを変えると、道順が組み直されます。</p>
+      </section>
       <ol className="list">
         {choices.map((stop) => {
           const picked = course.stops.some((item) => item.id === stop.id)
           return (
-          <li key={stop.id}>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={picked}
-                disabled={busy}
-                onChange={() => {
-                  const next = picked
-                    ? course.stops.filter((item) => item.id !== stop.id).map((item) => item.id)
-                    : [...course.stops.map((item) => item.id), stop.id]
-                  onRevise(next)
-                }}
-              />
-              この古墳を回る
-            </label>
-            <button type="button" className="text-button" onClick={() => void openStop(stop)}>
-              <strong>{stop.name}</strong>
-              <span className="muted">{stop.address}</span>
-            </button>
+          <li key={stop.id} className="group">
+            <div className="group">
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={picked}
+                  disabled={busy}
+                  onChange={() => {
+                    const next = picked
+                      ? course.stops.filter((item) => item.id !== stop.id).map((item) => item.id)
+                      : [...course.stops.map((item) => item.id), stop.id]
+                    onRevise(next)
+                  }}
+                />
+                この古墳を回る
+              </label>
+              <button type="button" className="text-button" onClick={() => void openStop(stop)}>
+                <strong>{stop.name}</strong>
+                <span className="muted">{stop.address}</span>
+              </button>
+            </div>
             {selectedId === stop.id && loading && <p className="muted">要約を読んでいます。</p>}
             {selectedId === stop.id && wiki && (
               <article className="card">
@@ -123,15 +130,17 @@ export function CoursePage({
       </ol>
       {busy && <p className="muted">選んだ古墳で道順を作り直しています。</p>}
       {error && <p className="error">{error}</p>}
-      <p className="distance">
-        {formatKm(course.distanceKm)}
-        <span>走行距離</span>
-      </p>
-      <p className="muted">チェックした古墳を通り、起点に戻る道のりの長さです。</p>
+      <section className="group">
+        <p className="distance">
+          {formatKm(course.distanceKm)}
+          <span>走行距離</span>
+        </p>
+        <p className="muted">チェックした古墳を通り、起点に戻る道のりの長さです。</p>
+      </section>
       {saveMessage && (
         <p className={saveMessage === '保存しました。' ? 'muted' : 'error'}>{saveMessage}</p>
       )}
-      <div className="row">
+      <div className="row group">
         <button type="button" onClick={onRun}>
           走る
         </button>

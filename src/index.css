@@ -29,6 +29,16 @@ main {
   padding: 16px 16px 32px;
 }
 
+.course-page {
+  gap: 28px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 h1, h2 {
   margin: 0;
   font-weight: 500;
@@ -94,6 +104,10 @@ button.secondary {
   gap: 8px;
 }
 
+.course-page .list {
+  gap: 20px;
+}
+
 .list li {
   background: #fffdf8;
   border-radius: 10px;
@@ -148,7 +162,7 @@ button.secondary {
 
 .notice {
   margin: 0;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 12px;
   background: #6b4423;
   color: #fffdf8;
