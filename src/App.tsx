@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
-import { formatKm, haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
-import { lapsNear, routeAround } from './lib/around.ts'
+import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
+import { lapsForDistance, routeAround } from './lib/around.ts'
 import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
@@ -135,14 +135,18 @@ export default function App() {
     const here = { ...center, lat: start!.lat, lng: start!.lng }
     const loop = await routeAround(here, fetchRoute)
     const lapKm = loop.distanceMeters / 1000
-    const laps = lapsNear(lapKm, targetKm)
+    const chosen = lapsForDistance(lapKm, targetKm)
+    const laps = chosen.laps
     const distanceKm = lapKm * laps
-    const nearEnough = Math.abs(distanceKm - targetKm) / targetKm <= 0.2
-    const fitMessage = !loop.suited
-      ? `${heading}は、この古墳を中心にした輪になりません。`
-      : nearEnough
-        ? ''
-        : `${heading}は希望の距離に合いません。いちばん近いのは${laps}周の${formatKm(distanceKm)}です。`
+    const lapNote =
+      chosen.fit === 'short'
+        ? `${laps}周にしています。希望の距離には届きません。`
+        : chosen.fit === 'over'
+          ? `${laps}周で希望の距離を超えます。${laps}周にしています。`
+          : `希望の距離には、${laps}周が適しています。`
+    const fitMessage = loop.suited
+      ? lapNote
+      : `まわりの道が、古墳を中心にした輪になりません。${lapNote}`
     const plan: CoursePlan = {
       id: crypto.randomUUID(),
       title: `${shortPlace(start!.label)} · ${distanceKm.toFixed(1)}km · ${laps}周`,
@@ -172,7 +176,7 @@ export default function App() {
       setError('起点を選んでください。')
       return
     }
-    const aroundKofun = (kind === 'loop' || kind === 'wide') && Boolean(kofunMatching(start))
+    const circling = kind === 'loop' && Boolean(kofunMatching(start))
     if ((kind === 'loop' || kind === 'wide') && (!Number.isFinite(parsedKm) || parsedKm < 1 || parsedKm > 50)) {
       setError('距離は1から50のkmで入力してください。')
       return
@@ -183,8 +187,8 @@ export default function App() {
         await createOutAndBack()
         return
       }
-      if (aroundKofun) {
-        await createCircle(parsedKm, kind === 'wide' ? '大回りの一周' : '周回コース')
+      if (circling) {
+        await createCircle(parsedKm, '周回コース')
         return
       }
       const sets = rankStopSets(start, parsedKm)
@@ -210,7 +214,7 @@ export default function App() {
         return
       }
       setChoices(toStops(bestSet))
-      setCourse(best)
+      setCourse({ ...best, heading: kind === 'wide' ? '大回りの一周' : '周回コース' })
       setPage('course')
     } catch (caught) {
       setError(

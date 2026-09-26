@@ -25,13 +25,17 @@ function centered(line: [number, number][], center: LatLng, distanceKm: number):
   return haversineKm(center, middle) <= Math.max(0.25, radius * 0.6)
 }
 
-export function lapsNear(lapKm: number, targetKm: number): number {
-  if (lapKm <= 0) return 1
-  const upper = Math.min(20, Math.max(1, Math.ceil(targetKm / lapKm)))
-  const lower = Math.max(1, upper - 1)
-  const lowerGap = Math.abs(lower * lapKm - targetKm)
-  const upperGap = Math.abs(upper * lapKm - targetKm)
-  return lowerGap <= upperGap ? lower : upper
+const LAP_LIMIT = 5
+
+export function lapsForDistance(lapKm: number, targetKm: number): { laps: number; fit: 'short' | 'fit' | 'over' } {
+  if (lapKm <= 0) return { laps: 1, fit: 'short' }
+  if (lapKm * LAP_LIMIT < targetKm) return { laps: LAP_LIMIT, fit: 'short' }
+  if (lapKm > targetKm) return { laps: 1, fit: 'over' }
+  let laps = 1
+  for (let count = 1; count <= LAP_LIMIT; count += 1) {
+    if (count * lapKm <= targetKm) laps = count
+  }
+  return { laps, fit: 'fit' }
 }
 
 export async function routeAround(
