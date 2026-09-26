@@ -614,32 +614,12 @@ async function wikiGroupKofun(query: string): Promise<PlaceHit[]> {
   return wikiCoordinates([...titles])
 }
 
-export async function searchPlaces(query: string): Promise<PlaceHit[]> {
-  const named = kofunPlaces(query)
-  const extra = await wikiGroupKofun(query)
-  const merged = [...named]
-  for (const place of extra) {
-    if (merged.some((item) => haversineKm(item, place) < 0.4)) continue
-    merged.push(place)
-  }
-  if (merged.length > 0) return merged
-  const search = new URL('https://msearch.gsi.go.jp/address-search/AddressSearch')
-  search.searchParams.set('q', query.trim())
-  const response = await fetch(search)
-  if (!response.ok) throw new Error('地名検索に失敗しました。')
-  const places = (await response.json()) as {
-    geometry?: { coordinates?: [number, number] }
-    properties?: { title?: string }
-  }[]
-  const candidates = places.flatMap((place) => {
-    const [lng, lat] = place.geometry?.coordinates ?? []
-    const title = formatGsiTitle(place.properties?.title ?? '')
-    if (lat === undefined || lng === undefined || !title || /[「」()（）]/.test(title)) return []
-    return [{ title, lat, lng }]
-  })
+async function placesFromTitles(candidates: { title: string; lat: number; lng: number }[], query: string) {
   const trimmed = query.trim()
   if (trimmed.endsWith('駅')) {
-    const stations = candidates.filter((place) => place.title.endsWith('駅') && (place.title === trimmed || place.title.endsWith(trimmed)))
+    const stations = candidates.filter(
+      (place) => place.title.endsWith('駅') && (place.title === trimmed || place.title.endsWith(trimmed)),
+    )
     const hits = (
       await Promise.all(
         stationGroups(stations).map(async (group) => {
@@ -660,6 +640,111 @@ export async function searchPlaces(query: string): Promise<PlaceHit[]> {
   if (!chosen) return []
   const label = isStreetAddress(chosen.title) ? chosen.title : await addressAt(chosen.lat, chosen.lng)
   return label ? [{ label, lat: chosen.lat, lng: chosen.lng }] : []
+}
+
+async function gsiPlaceHits(query: string) {
+  const search = new URL('https://msearch.gsi.go.jp/address-search/AddressSearch')
+  search.searchParams.set('q', query.trim())
+  const response = await fetch(search, { signal: AbortSignal.timeout(2500) })
+  if (!response.ok) return []
+  const places = (await response.json()) as {
+    geometry?: { coordinates?: [number, number] }
+    properties?: { title?: string }
+  }[]
+  const candidates = places.flatMap((place) => {
+    const [lng, lat] = place.geometry?.coordinates ?? []
+    const title = formatGsiTitle(place.properties?.title ?? '')
+    if (lat === undefined || lng === undefined || !title || /[「」()（）]/.test(title)) return []
+    return [{ title, lat, lng }]
+  })
+  return placesFromTitles(candidates, query)
+}
+
+async function stationPlaceHits(query: string) {
+  const trimmed = query.trim()
+  const name = trimmed.replace(/駅$/, '')
+  if (!name) return []
+  const response = await fetch(
+    `https://express.heartrails.com/api/json?method=getStations&name=${encodeURIComponent(name)}`,
+    { signal: AbortSignal.timeout(8000) },
+  )
+  if (!response.ok) return []
+  const data = (await response.json()) as { response?: { station?: { name?: string; x?: number; y?: number } | { name?: string; x?: number; y?: number }[] } }
+  const stations = data.response?.station
+  const list = Array.isArray(stations) ? stations : stations ? [stations] : []
+  const candidates = list.flatMap((station) => {
+    if (station.name !== name || station.x === undefined || station.y === undefined) return []
+    return [{ title: trimmed.endsWith('駅') ? trimmed : `${station.name}駅`, lat: station.y, lng: station.x }]
+  })
+  return placesFromTitles(candidates, trimmed.endsWith('駅') ? trimmed : `${name}駅`)
+}
+
+async function geocodePlaces(name: string) {
+  const search = new URL('https://geocoding-api.open-meteo.com/v1/search')
+  search.searchParams.set('name', name)
+  search.searchParams.set('count', '8')
+  search.searchParams.set('language', 'ja')
+  search.searchParams.set('countryCode', 'JP')
+  const response = await fetch(search, { signal: AbortSignal.timeout(8000) })
+  if (!response.ok) return []
+  const data = (await response.json()) as {
+    results?: { name?: string; latitude?: number; longitude?: number; feature_code?: string; admin1?: string }[]
+  }
+  return data.results ?? []
+}
+
+async function namedPlaceHit(query: string) {
+  const trimmed = query.trim()
+  const stem = trimmed.replace(/(市|区|町|村|郡)$/u, '')
+  let results = await geocodePlaces(trimmed)
+  if (results.length === 0 && stem !== trimmed) results = await geocodePlaces(stem)
+  const wanted = new Set([trimmed, stem].filter(Boolean))
+  const places = results.filter(
+    (place) =>
+      place.name &&
+      wanted.has(place.name) &&
+      /^(PPL|PPLA|PPLC)/.test(place.feature_code ?? '') &&
+      place.latitude !== undefined &&
+      place.longitude !== undefined,
+  )
+  const hits = (
+    await Promise.all(
+      places.map(async (place) => {
+        const lat = place.latitude ?? 0
+        const lng = place.longitude ?? 0
+        const label = (await addressAt(lat, lng)) || `${place.admin1 ?? ''}${place.name ?? ''}`
+        return { label, lat, lng }
+      }),
+    )
+  ).filter((place) => place.label)
+  return hits.filter((place, index) => hits.findIndex((item) => item.label === place.label) === index)
+}
+
+export async function searchPlaces(query: string): Promise<PlaceHit[]> {
+  const named = kofunPlaces(query)
+  const extra = await wikiGroupKofun(query)
+  const merged = [...named]
+  for (const place of extra) {
+    if (merged.some((item) => haversineKm(item, place) < 0.4)) continue
+    merged.push(place)
+  }
+  if (merged.length > 0) return merged
+  const trimmed = query.trim()
+  try {
+    const fromGsi = await gsiPlaceHits(trimmed)
+    if (fromGsi.length > 0) return fromGsi
+  } catch {
+    // 国土地理院の住所検索が返事しないときは、下の検索で起点を決める。
+  }
+  if (trimmed.endsWith('駅')) {
+    try {
+      const stations = await stationPlaceHits(trimmed)
+      if (stations.length > 0) return stations
+    } catch {
+      // 駅名で見つからないときは、地名の検索に進む。
+    }
+  }
+  return namedPlaceHit(trimmed)
 }
 
 export async function fetchOptimalLoop(coordinates: [number, number][]): Promise<{
