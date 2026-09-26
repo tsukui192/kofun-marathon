@@ -5,6 +5,7 @@ export type MapNearby = LatLng & {
   id: string
   name: string
   selected: boolean
+  labeled?: boolean
 }
 
 type MapViewProps = {
@@ -88,7 +89,10 @@ export function MapView({
             fillOpacity: 1,
             weight: 2,
           })
-          .bindTooltip(point.selected ? `${point.name}（選択中）` : point.name)
+          .bindTooltip(point.selected ? `${point.name}（選択中）` : point.name, {
+            permanent: Boolean(point.labeled),
+            direction: 'top',
+          })
           .on('click', () => onNearbyClickRef.current?.(point.id))
           .addTo(layers)
       }

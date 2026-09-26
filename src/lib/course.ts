@@ -130,6 +130,19 @@ export function nearbyKofun(start: LatLng, radiusKm = 8, limit = 30): Kofun[] {
   return nearest(start, radiusKm, limit)
 }
 
+export function openingKofun(): Kofun {
+  const group = KOFUN.find((item) => item.name === '埼玉古墳群')
+  if (group) return group
+  return {
+    id: 'saitama-kofun-group',
+    name: '埼玉古墳群',
+    reading: 'さきたまこふんぐん',
+    address: '埼玉県 行田市 大字埼玉',
+    lat: 36.127829,
+    lng: 139.479969,
+  }
+}
+
 export function kofunMatching(place: PlaceHit): Kofun | null {
   const named = kofunFromLabel(place.label)
   if (!named) return null

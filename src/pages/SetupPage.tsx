@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { KofunFacts } from '../components/KofunFacts.tsx'
 import { MapView } from '../components/MapView.tsx'
-import { kofunFromLabel } from '../lib/course.ts'
-import { nearbyKofun } from '../lib/course.ts'
+import { kofunFromLabel, nearbyKofun, openingKofun } from '../lib/course.ts'
 import { searchPlaces } from '../lib/api.ts'
 import type { CoursePlan, LatLng, PlaceHit, Visit } from '../types.ts'
 
@@ -46,8 +45,9 @@ export function SetupPage({
   const [laps, setLaps] = useState('1')
   const startKofun = start ? kofunFromLabel(start.label) : null
   const startIsKofun = Boolean(startKofun)
-  const center = useMemo(() => start ?? { lat: 34.564, lng: 135.487 }, [start])
-  const nearby = useMemo(() => (start ? nearbyKofun(start) : []), [start])
+  const opening = useMemo(() => openingKofun(), [])
+  const center = useMemo(() => start ?? { lat: opening.lat, lng: opening.lng }, [start, opening])
+  const nearby = useMemo(() => (start ? nearbyKofun(start) : [opening]), [start, opening])
 
   async function locate() {
     setSearchError('')
@@ -159,7 +159,7 @@ export function SetupPage({
         center={center}
         start={start}
         stops={[]}
-        nearby={nearby.map((kofun) => ({ ...kofun, selected: false }))}
+        nearby={nearby.map((kofun) => ({ ...kofun, selected: false, labeled: !start && kofun.id === opening.id }))}
         line={[]}
         user={null}
         draggable
