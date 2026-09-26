@@ -1,3 +1,4 @@
+import { deleteSharedCourse, listSharedCourses, publishSharedCourse } from './cloud.ts'
 import type { CoursePlan, Visit } from '../types.ts'
 
 const PERSON_KEY = 'kofun-marathon-person'
@@ -13,6 +14,30 @@ function coursesKey(person: string) {
 
 function visitsKey(person: string) {
   return `${LEGACY_VISITS_KEY}:${person}`
+}
+
+function deletedKey(person: string) {
+  return `kofun-marathon-deleted:${person}`
+}
+
+export type SyncResult = { ok: true; courses: CoursePlan[] } | { ok: false; message: string; courses: CoursePlan[] }
+
+export function mergeCourses(local: CoursePlan[], remote: CoursePlan[], deletedIds: string[]) {
+  const deleted = new Set(deletedIds)
+  const dropRemote = remote.filter((course) => deleted.has(course.id))
+  const kept = new Map<string, CoursePlan>()
+  for (const course of remote) {
+    if (!deleted.has(course.id)) kept.set(course.id, course)
+  }
+  const push: CoursePlan[] = []
+  for (const course of local) {
+    if (deleted.has(course.id) || kept.has(course.id)) continue
+    if (kept.size >= COURSE_LIMIT) continue
+    kept.set(course.id, course)
+    push.push(course)
+  }
+  const courses = [...kept.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, COURSE_LIMIT)
+  return { courses, push, dropRemote }
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -90,12 +115,104 @@ export function saveCourse(course: CoursePlan, person = loadPerson()): StoreResu
   return writeJson(coursesKey(person), [course, ...courses])
 }
 
+function loadDeleted(person: string): string[] {
+  return readJson<string[]>(deletedKey(person), [])
+}
+
+function rememberDeleted(person: string, id: string) {
+  const deleted = loadDeleted(person)
+  if (!deleted.includes(id)) writeJson(deletedKey(person), [id, ...deleted])
+}
+
 export function deleteCourse(id: string, person = loadPerson()): StoreResult {
   if (!person) return { ok: false, message: '先に名前を入れてください。' }
+  rememberDeleted(person, id)
   return writeJson(
     coursesKey(person),
     loadCourses(person).filter((course) => course.id !== id),
   )
+}
+
+let syncQueue: Promise<unknown> = Promise.resolve()
+
+function enqueue<T>(work: () => Promise<T>): Promise<T> {
+  const run = syncQueue.then(work, work)
+  syncQueue = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+export function saveAndShare(course: CoursePlan, person = loadPerson()): Promise<StoreResult> {
+  if (!person) return Promise.resolve({ ok: false, message: '先に名前を入れてから保存してください。' })
+  return enqueue(async () => {
+    const saved = saveCourse(course, person)
+    if (!saved.ok) return saved
+    try {
+      const shared = await listSharedCourses(person)
+      if (shared.some((item) => item.course.id === course.id)) return { ok: true }
+      if (shared.length >= COURSE_LIMIT) {
+        return { ok: false, message: 'このスマホには保存しました。別のスマホの保存は20本までです。どれかを消してください。' }
+      }
+      await publishSharedCourse(person, course)
+      return { ok: true }
+    } catch {
+      return {
+        ok: false,
+        message: 'このスマホには保存しました。別のスマホへは、通信できるときにこのページを開くと送られます。',
+      }
+    }
+  })
+}
+
+export function removeAndUnshare(id: string, person = loadPerson()): Promise<StoreResult> {
+  if (!person) return Promise.resolve({ ok: false, message: '先に名前を入れてください。' })
+  return enqueue(async () => {
+    const removed = deleteCourse(id, person)
+    if (!removed.ok) return removed
+    try {
+      const shared = await listSharedCourses(person)
+      for (const item of shared) {
+        if (item.course.id === id) await deleteSharedCourse(item.remoteId)
+      }
+      return { ok: true }
+    } catch {
+      return {
+        ok: false,
+        message: 'このスマホからは消しました。別のスマホには、通信できるときにこのページを開くと反映されます。',
+      }
+    }
+  })
+}
+
+export function syncCourses(person = loadPerson()): Promise<SyncResult> {
+  if (!person) return Promise.resolve({ ok: true, courses: [] })
+  return enqueue(async () => {
+    const local = loadCourses(person)
+    try {
+      const shared = await listSharedCourses(person)
+      const merged = mergeCourses(
+        local,
+        shared.map((item) => item.course),
+        loadDeleted(person),
+      )
+      for (const course of merged.dropRemote) {
+        const matches = shared.filter((item) => item.course.id === course.id)
+        for (const match of matches) await deleteSharedCourse(match.remoteId)
+      }
+      for (const course of merged.push) await publishSharedCourse(person, course)
+      const saved = writeJson(coursesKey(person), merged.courses)
+      if (!saved.ok) return { ok: false, message: saved.message, courses: local }
+      return { ok: true, courses: merged.courses }
+    } catch {
+      return {
+        ok: false,
+        message: '別のスマホとコースを共有できませんでした。通信できるときに、もう一度このページを開いてください。',
+        courses: local,
+      }
+    }
+  })
 }
 
 export function recordVisit(visit: Visit, person = loadPerson()): StoreResult {

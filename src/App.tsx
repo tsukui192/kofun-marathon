@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
 import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
 import { lapsForDistance, routeAround } from './lib/around.ts'
 import { fitsDistance, kofunMatching, nearbyKofun, orderLoop, rankStopSets, returnOffsets, toStops } from './lib/course.ts'
-import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
+import { loadCourses, loadPerson, loadVisits, rememberPerson, removeAndUnshare, saveAndShare, syncCourses } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
@@ -35,6 +35,22 @@ export default function App() {
 
   const refreshVisits = useCallback(() => setVisits(loadVisits()), [])
   const parsedKm = useMemo(() => Number(targetKm), [targetKm])
+  const syncGeneration = useRef(0)
+
+  const applySync = useCallback((next: string) => {
+    const generation = syncGeneration.current + 1
+    syncGeneration.current = generation
+    return syncCourses(next).then((result) => {
+      if (syncGeneration.current !== generation) return
+      setCourses(result.courses)
+      if (!result.ok) setError(result.message)
+    })
+  }, [])
+
+  useEffect(() => {
+    const current = loadPerson()
+    if (current) void applySync(current)
+  }, [applySync])
 
   async function routeThrough(place: PlaceHit, selected: CourseStop[], target: number) {
     const coordinates: [number, number][] = [
@@ -272,26 +288,20 @@ export default function App() {
     setVisits(loadVisits(next))
     setError('')
     setSaveMessage('')
+    void applySync(next)
   }
 
-  function storeCourse() {
+  async function storeCourse() {
     if (!course) return
-    const result = saveCourse(course)
-    if (!result.ok) {
-      setSaveMessage(result.message)
-      return
-    }
+    const result = await saveAndShare(course)
     setCourses(loadCourses())
-    setSaveMessage('保存しました。')
+    setSaveMessage(result.ok ? '保存しました。別のスマホでも、同じ名前で見られます。' : result.message)
   }
 
-  function removeCourse(id: string) {
-    const result = deleteCourse(id)
-    if (!result.ok) {
-      setError(result.message)
-      return
-    }
+  async function removeCourse(id: string) {
+    const result = await removeAndUnshare(id)
     setCourses(loadCourses())
+    if (!result.ok) setError(result.message)
   }
 
   return (
