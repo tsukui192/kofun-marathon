@@ -64,7 +64,7 @@ export function CoursePage({
           {formatKm(course.distanceKm)}
           <span>
             {laps > 0
-              ? `${laps}周（1周 ${formatKm(course.distanceKm / laps)}）`
+              ? `${course.targetKm > 0 ? `希望 ${formatKm(course.targetKm)} · ` : ''}${laps}周（1周 ${formatKm(course.distanceKm / laps)}）`
               : course.targetKm > 0
                 ? `希望 ${formatKm(course.targetKm)} · 選んだ古墳の道のり`
                 : '選んだ古墳の道のり'}
@@ -80,6 +80,7 @@ export function CoursePage({
           draggable={false}
         />
       </section>
+      {course.fitMessage && <p className="notice">{course.fitMessage}</p>}
       {startKofun && (
         <section className="group">
           <p className="notice">起点は{startKofun.name}です。</p>
@@ -159,7 +160,7 @@ export function CoursePage({
         </p>
         <p className="muted">
           {laps > 0
-            ? `この古墳を中心に、まわりの道を${laps}周する距離です。地図の輪は1周分です。`
+            ? `この古墳を中心に、希望の距離にいちばん近い周回です。地図の輪は1周分です。`
             : 'チェックした古墳を通り、起点に戻る道のりの長さです。'}
         </p>
       </section>

@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
-import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
-import { routeAround } from './lib/around.ts'
+import { formatKm, haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
+import { lapsNear, routeAround } from './lib/around.ts'
 import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, rankWideStopSets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
@@ -125,7 +125,7 @@ export default function App() {
     setPage('course')
   }
 
-  async function createCircle(laps: number) {
+  async function createCircle(targetKm: number) {
     const center = kofunMatching(start!)
     if (!center) {
       setError('起点の古墳が分かりません。古墳を選び直してください。')
@@ -133,14 +133,23 @@ export default function App() {
     }
     const here = { ...center, lat: start!.lat, lng: start!.lng }
     const loop = await routeAround(here, fetchRoute)
-    const distanceKm = (loop.distanceMeters / 1000) * laps
+    const lapKm = loop.distanceMeters / 1000
+    const laps = lapsNear(lapKm, targetKm)
+    const distanceKm = lapKm * laps
+    const nearEnough = Math.abs(distanceKm - targetKm) / targetKm <= 0.2
+    const fitMessage = !loop.suited
+      ? 'この古墳では周回コースが合いません。まわりの道が、古墳を中心にした輪になりません。'
+      : nearEnough
+        ? ''
+        : `周回コースは希望の距離に合いません。いちばん近いのは${laps}周の${formatKm(distanceKm)}です。`
     const plan: CoursePlan = {
       id: crypto.randomUUID(),
       title: `${shortPlace(start!.label)} · ${distanceKm.toFixed(1)}km · ${laps}周`,
       createdAt: new Date().toISOString(),
-      targetKm: 0,
+      targetKm,
       distanceKm,
       laps,
+      fitMessage: fitMessage || undefined,
       start: start!,
       stops: toStops([here]),
       line: loop.line,
@@ -150,7 +159,7 @@ export default function App() {
     setPage('course')
   }
 
-  async function createCourse(kind: CourseKind = 'loop', laps = 1) {
+  async function createCourse(kind: CourseKind = 'loop') {
     setError('')
     setSaveMessage('')
     if (!person) {
@@ -162,11 +171,7 @@ export default function App() {
       return
     }
     const circling = kind === 'loop' && Boolean(kofunMatching(start))
-    if (circling && (!Number.isInteger(laps) || laps < 1 || laps > 10)) {
-      setError('周回数は1から10の整数で入力してください。')
-      return
-    }
-    if (!circling && kind === 'loop' && (!Number.isFinite(parsedKm) || parsedKm < 1 || parsedKm > 50)) {
+    if (kind === 'loop' && (!Number.isFinite(parsedKm) || parsedKm < 1 || parsedKm > 50)) {
       setError('距離は1から50のkmで入力してください。')
       return
     }
@@ -177,7 +182,7 @@ export default function App() {
         return
       }
       if (circling) {
-        await createCircle(laps)
+        await createCircle(parsedKm)
         return
       }
       const sets = kind === 'wide' ? rankWideStopSets(start) : rankStopSets(start, parsedKm)
@@ -290,7 +295,7 @@ export default function App() {
           }}
           onTargetChange={setTargetKm}
           onUsePerson={usePerson}
-          onCreate={(kind, laps) => void createCourse(kind, laps)}
+          onCreate={(kind) => void createCourse(kind)}
           onOpenCourse={(saved) => {
             setChoices(saved.stops)
             setCourse(saved)

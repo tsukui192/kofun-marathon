@@ -16,7 +16,7 @@ type SetupPageProps = {
   onStartChange: (place: PlaceHit) => void
   onTargetChange: (value: string) => void
   onUsePerson: (name: string) => void
-  onCreate: (kind: 'loop' | 'wide' | 'out', laps: number) => void
+  onCreate: (kind: 'loop' | 'wide' | 'out') => void
   onOpenCourse: (course: CoursePlan) => void
   onDeleteCourse: (id: string) => void
 }
@@ -42,7 +42,6 @@ export function SetupPage({
   const [searchError, setSearchError] = useState('')
   const [searching, setSearching] = useState(false)
   const [courseKind, setCourseKind] = useState<'loop' | 'wide' | 'out'>('loop')
-  const [laps, setLaps] = useState('1')
   const startKofun = start ? kofunFromLabel(start.label) : null
   const startIsKofun = Boolean(startKofun)
   const opening = useMemo(() => openingKofun(), [])
@@ -181,16 +180,7 @@ export function SetupPage({
           </div>
         </div>
       )}
-      {startIsKofun && courseKind === 'loop' && (
-        <div className="group">
-          <label>
-            周回数
-            <input inputMode="numeric" value={laps} onChange={(event) => setLaps(event.target.value)} />
-          </label>
-          <p className="muted">この古墳を中心に、まわりの道を回る回数です。1周の道を、選んだ回数だけ進みます。</p>
-        </div>
-      )}
-      {!startIsKofun && (
+      {(!startIsKofun || courseKind === 'loop') && (
         <div className="group">
           <label>
             走りたい距離（km）
@@ -200,13 +190,17 @@ export function SetupPage({
               onChange={(event) => onTargetChange(event.target.value)}
             />
           </label>
-          <p className="muted">出発した場所に戻る道を作り、その距離に近い古墳を勧めます。</p>
+          <p className="muted">
+            {startIsKofun
+              ? 'この古墳を中心に、希望の距離にいちばん近い周回を作ります。'
+              : '出発した場所に戻る道を作り、その距離に近い古墳を勧めます。'}
+          </p>
         </div>
       )}
       {(error || searchError) && <p className="error">{error || searchError}</p>}
       <button
         type="button"
-        onClick={() => onCreate(startIsKofun ? courseKind : 'loop', Number(laps))}
+        onClick={() => onCreate(startIsKofun ? courseKind : 'loop')}
         disabled={busy || !start}
       >
         {busy ? 'コースを作成中' : 'コースを作る'}
