@@ -94,6 +94,12 @@ function subsets(items: Kofun[]): Kofun[][] {
   return out
 }
 
+/** 希望の距離以上で、希望より1kmを超えない道のりか。 */
+export function fitsDistance(distanceKm: number, targetKm: number): boolean {
+  if (targetKm <= 0) return true
+  return distanceKm >= targetKm && distanceKm <= targetKm + 1
+}
+
 /** 行きと帰りが重なるとき、希望の距離へ寄せるために横へずらす距離（km）。 */
 export function returnOffsets(baseKm: number, targetKm: number): number[] {
   const offsets: number[] = []
@@ -103,7 +109,7 @@ export function returnOffsets(baseKm: number, targetKm: number): number[] {
     offsets.push(clamped)
   }
   const shortfall = targetKm > 0 ? targetKm - baseKm : 0
-  if (shortfall > 0.5) {
+  if (shortfall > 0) {
     const needed = shortfall / 1.5
     add(needed)
     add(needed * 0.85)

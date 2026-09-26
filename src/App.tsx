@@ -3,7 +3,7 @@ import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
 import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
 import { lapsForDistance, routeAround } from './lib/around.ts'
-import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, returnOffsets, toStops } from './lib/course.ts'
+import { fitsDistance, kofunMatching, nearbyKofun, orderLoop, rankStopSets, returnOffsets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
@@ -57,11 +57,11 @@ export default function App() {
         [place.lng, place.lat],
       ])
     }
-    const gapOf = (meters: number) => (target > 0 ? Math.abs(meters / 1000 - target) : 0)
-    const inWindow = (meters: number) => target <= 0 || gapOf(meters) <= 0.5
+    const excessOf = (meters: number) => (target > 0 ? meters / 1000 - target : 0)
+    const inWindow = (meters: number) => fitsDistance(meters / 1000, target)
     const baseKm = route.distanceMeters / 1000
     const thin = ringAreaKm2(route.line) < 0.2
-    const short = target > 0 && baseKm + 0.5 < target
+    const short = target > 0 && baseKm < target
     if (thin || short) {
       const far = selected.reduce((left, right) => (haversineKm(place, left) >= haversineKm(place, right) ? left : right))
       let opened: { distanceMeters: number; line: [number, number][] } | null = null
@@ -79,7 +79,7 @@ export default function App() {
             const grew = via.distanceMeters > route.distanceMeters + 400
             if (ringAreaKm2(via.line) < 0.2 && !grew) continue
             if (!inWindow(via.distanceMeters)) continue
-            const gap = gapOf(via.distanceMeters)
+            const gap = excessOf(via.distanceMeters)
             if (!opened || gap < openedGap) {
               opened = via
               openedGap = gap
@@ -91,7 +91,7 @@ export default function App() {
         if (opened && openedGap <= 0.2) break
       }
       const baseInWindow = inWindow(route.distanceMeters)
-      if (opened && (target <= 0 || !baseInWindow || openedGap <= gapOf(route.distanceMeters))) route = opened
+      if (opened && (target <= 0 || !baseInWindow || openedGap <= excessOf(route.distanceMeters))) route = opened
     }
     const distanceKm = route.distanceMeters / 1000
     const plan: CoursePlan = {
@@ -203,20 +203,20 @@ export default function App() {
       }
       const sets = rankStopSets(start, parsedKm)
       if (sets.length === 0) {
-        setError('希望の距離の前後500m以内になる古墳が、この近くにはありません。')
+        setError('希望の距離以上で、1kmを超えない古墳が、この近くにはありません。')
         return
       }
       let best: CoursePlan | null = null
       let bestSet: Kofun[] = []
       for (const set of sets) {
         const plan = await routeThrough(start, toStops(set), parsedKm)
-        if (Math.abs(plan.distanceKm - parsedKm) > 0.5) continue
+        if (!fitsDistance(plan.distanceKm, parsedKm)) continue
         best = plan
         bestSet = set
         break
       }
-      if (!best || Math.abs(best.distanceKm - parsedKm) > 0.5) {
-        setError('希望の距離の前後500m以内になる古墳が、この近くにはありません。')
+      if (!best || !fitsDistance(best.distanceKm, parsedKm)) {
+        setError('希望の距離以上で、1kmを超えない古墳が、この近くにはありません。')
         return
       }
       setChoices(toStops(bestSet))
@@ -244,8 +244,8 @@ export default function App() {
     setBusy(true)
     try {
       const plan = await routeThrough(course.start, selected, course.targetKm)
-      if (course.targetKm > 0 && Math.abs(plan.distanceKm - course.targetKm) > 0.5) {
-        setError('この組み合わせでは、希望の距離の前後500m以内になりません。')
+      if (course.targetKm > 0 && !fitsDistance(plan.distanceKm, course.targetKm)) {
+        setError('この組み合わせでは、希望の距離以上で1km以内になりません。')
         return
       }
       setCourse({ ...plan, id: course.id, createdAt: course.createdAt, heading: course.heading })
