@@ -26,6 +26,47 @@ export function formatKm(km: number): string {
   return `${km.toFixed(1)} km`
 }
 
+function metersFrom(origin: LatLng, point: LatLng): { north: number; east: number } {
+  return {
+    north: (point.lat - origin.lat) * 111320,
+    east: (point.lng - origin.lng) * 111320 * Math.cos((origin.lat * Math.PI) / 180),
+  }
+}
+
+export function distanceToLineKm(point: LatLng, line: [number, number][]): number {
+  if (line.length === 0) return Number.POSITIVE_INFINITY
+  let best = Number.POSITIVE_INFINITY
+  for (let index = 0; index < line.length - 1; index += 1) {
+    const start = { lat: line[index][0], lng: line[index][1] }
+    const end = { lat: line[index + 1][0], lng: line[index + 1][1] }
+    const offset = metersFrom(start, point)
+    const side = metersFrom(start, end)
+    const length = side.north ** 2 + side.east ** 2
+    const raw = length === 0 ? 0 : (offset.north * side.north + offset.east * side.east) / length
+    const along = Math.max(0, Math.min(1, raw))
+    best = Math.min(best, Math.hypot(offset.north - side.north * along, offset.east - side.east * along))
+  }
+  if (line.length === 1) best = haversineKm(point, { lat: line[0][0], lng: line[0][1] }) * 1000
+  return best / 1000
+}
+
+export function measureStep(
+  previous: LatLng,
+  previousAt: number,
+  next: LatLng,
+  nextAt: number,
+  accuracyM: number,
+): { accept: boolean; addKm: number } {
+  if (Number.isFinite(accuracyM) && accuracyM > 35) return { accept: false, addKm: 0 }
+  const seconds = (nextAt - previousAt) / 1000
+  if (seconds < 1) return { accept: false, addKm: 0 }
+  const step = haversineKm(previous, next)
+  const speed = (step * 1000) / seconds
+  if (speed > 6.5) return { accept: true, addKm: 0 }
+  if (step < 0.008 || speed < 0.5) return { accept: false, addKm: 0 }
+  return { accept: true, addKm: step }
+}
+
 export function ringAreaKm2(line: [number, number][]): number {
   if (line.length < 4) return 0
   let sum = 0

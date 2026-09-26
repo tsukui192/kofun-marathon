@@ -8,12 +8,15 @@ export type MapNearby = LatLng & {
   labeled?: boolean
 }
 
+const NO_TRACK: [number, number][] = []
+
 type MapViewProps = {
   center: LatLng
   start: LatLng | null
   stops: CourseStop[]
   nearby: MapNearby[]
   line: [number, number][]
+  track?: [number, number][]
   user: LatLng | null
   draggable: boolean
   onStartChange?: (point: LatLng) => void
@@ -27,6 +30,7 @@ export function MapView({
   stops,
   nearby,
   line,
+  track = NO_TRACK,
   user,
   draggable,
   onStartChange,
@@ -77,6 +81,9 @@ export function MapView({
     if (!ready || !map || !layers) return
     void import('leaflet').then((leaflet) => {
       layers.clearLayers()
+      if (track.length > 1) {
+        leaflet.polyline(track, { color: '#1d4e89', weight: 4 }).addTo(layers)
+      }
       if (line.length > 1) {
         leaflet.polyline(line, { color: '#2f6f4e', weight: 5 }).addTo(layers)
       }
@@ -141,7 +148,7 @@ export function MapView({
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2), { animate: false })
       else map.setView([center.lat, center.lng], 14, { animate: false })
     })
-  }, [ready, center, start, stops, nearby, line, user, draggable])
+  }, [ready, center, start, stops, nearby, line, track, user, draggable])
 
   return <div ref={hostRef} className="map" />
 }

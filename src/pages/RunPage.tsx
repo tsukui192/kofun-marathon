@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapView } from '../components/MapView.tsx'
-import { formatKm, haversineKm } from '../lib/geo.ts'
+import { fetchRoute } from '../lib/api.ts'
+import { distanceToLineKm, formatKm, haversineKm, measureStep } from '../lib/geo.ts'
 import { recordVisit } from '../lib/storage.ts'
 import type { CoursePlan, CourseStop, LatLng } from '../types.ts'
 
 const START_LIMIT_KM = 0.5
 const CHECK_KM = 0.1
+const OFF_ROUTE_KM = 0.08
 
 type RunPageProps = {
   course: CoursePlan
@@ -18,16 +20,32 @@ type RunPageProps = {
 export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 }: RunPageProps) {
   const [user, setUser] = useState<LatLng | null>(initialStop ?? null)
   const [runKm, setRunKm] = useState(initialKm)
+  const [line, setLine] = useState(course.line)
+  const [track, setTrack] = useState<[number, number][]>([])
+  const [remainKm, setRemainKm] = useState<number | null>(null)
+  const [reviseNote, setReviseNote] = useState('')
   const [checked, setChecked] = useState<CourseStop[]>(initialStop ? [initialStop] : [])
   const [active, setActive] = useState<CourseStop | null>(initialStop ?? null)
   const [gpsError, setGpsError] = useState('')
   const checkedIds = useRef(new Set(initialStop ? [initialStop.id] : []))
   const startedRef = useRef(Boolean(initialStop))
   const [started, setStarted] = useState(Boolean(initialStop))
+  const lineRef = useRef(course.line)
+  const revisingRef = useRef(false)
+  const revisedAtRef = useRef(0)
+  const courseRef = useRef(course)
+  courseRef.current = course
   const onVisitedRef = useRef(onVisited)
   onVisitedRef.current = onVisited
   const awayKm = user ? haversineKm(user, course.start) : null
   const canRun = started || (awayKm !== null && awayKm <= START_LIMIT_KM)
+
+  useEffect(() => {
+    lineRef.current = course.line
+    setLine(course.line)
+    setRemainKm(null)
+    setReviseNote('')
+  }, [course])
 
   useEffect(() => {
     let lock: WakeLockSentinel | null = null
@@ -54,21 +72,37 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
       if (!initialStop) setGpsError('このブラウザでは現在地を取れません。')
       return
     }
-    let last: LatLng | null = null
+    let anchor: { point: LatLng; at: number } | null = null
     const watch = navigator.geolocation.watchPosition(
       (position) => {
         const next = { lat: position.coords.latitude, lng: position.coords.longitude }
+        const at = position.timestamp || Date.now()
         setUser(next)
         setGpsError('')
         if (haversineKm(next, course.start) <= START_LIMIT_KM && !startedRef.current) {
           startedRef.current = true
           setStarted(true)
         }
-        if (startedRef.current && last) {
-          const step = haversineKm(last, next)
-          if (step > 0.005 && step < 0.2) setRunKm((km) => km + step)
+        if (startedRef.current && anchor) {
+          const step = measureStep(anchor.point, anchor.at, next, at, position.coords.accuracy)
+          if (step.accept) {
+            if (step.addKm > 0) {
+              const from = anchor.point
+              setRunKm((km) => km + step.addKm)
+              setTrack((current) =>
+                current.length === 0
+                  ? [
+                      [from.lat, from.lng],
+                      [next.lat, next.lng],
+                    ]
+                  : [...current, [next.lat, next.lng]],
+              )
+            }
+            anchor = { point: next, at }
+          }
+        } else if (startedRef.current) {
+          anchor = { point: next, at }
         }
-        last = next
         for (const stop of course.stops) {
           if (haversineKm(next, stop) > CHECK_KM || checkedIds.current.has(stop.id)) continue
           checkedIds.current.add(stop.id)
@@ -84,11 +118,46 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
           setActive(stop)
           setChecked((current) => [...current, stop])
         }
+        if (
+          startedRef.current &&
+          !revisingRef.current &&
+          Date.now() - revisedAtRef.current > 20000 &&
+          distanceToLineKm(next, lineRef.current) > OFF_ROUTE_KM
+        ) {
+          revisingRef.current = true
+          revisedAtRef.current = Date.now()
+          const plan = courseRef.current
+          const remaining = plan.stops.filter(
+            (stop) => !checkedIds.current.has(stop.id) && haversineKm(next, stop) > 0.03,
+          )
+          const coordinates: [number, number][] = [
+            [next.lng, next.lat],
+            ...remaining.map((stop) => [stop.lng, stop.lat] as [number, number]),
+            [plan.start.lng, plan.start.lat],
+          ]
+          if (coordinates.length < 2 || (remaining.length === 0 && haversineKm(next, plan.start) < 0.03)) {
+            revisingRef.current = false
+            return
+          }
+          void fetchRoute(coordinates)
+            .then((route) => {
+              lineRef.current = route.line
+              setLine(route.line)
+              setRemainKm(route.distanceMeters / 1000)
+              setReviseNote('道を外れたので、ここから先の道を引き直しました。')
+            })
+            .catch(() => {
+              setReviseNote('道を外れています。引き直しに失敗しました。このまま走ってください。')
+            })
+            .finally(() => {
+              revisingRef.current = false
+            })
+        }
       },
       () => {
         if (!initialStop) setGpsError('現在地を取れませんでした。位置情報を許可してください。')
       },
-      { enableHighAccuracy: true, maximumAge: 2000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     )
     return () => navigator.geolocation.clearWatch(watch)
   }, [course, initialStop])
@@ -101,8 +170,14 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
       </header>
       <p className="distance">
         {formatKm(runKm)}
-        <span>コース {formatKm(course.distanceKm)}</span>
+        <span>走った距離</span>
       </p>
+      <p className="muted">
+        {remainKm === null
+          ? `コース ${formatKm(course.distanceKm)}`
+          : `残りの道のり ${formatKm(remainKm)}`}
+      </p>
+      {reviseNote && <p className="notice">{reviseNote}</p>}
       {!canRun && (
         <p className="error">
           {awayKm === null
@@ -116,7 +191,8 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         start={course.start}
         stops={course.stops}
         nearby={[]}
-        line={course.line}
+        line={line}
+        track={track}
         user={user}
         draggable={false}
       />
