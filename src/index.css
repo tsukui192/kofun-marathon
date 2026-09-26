@@ -126,8 +126,19 @@ button.secondary {
 
 .list li {
   background: #fffdf8;
+  border: 2px solid transparent;
   border-radius: 10px;
   padding: 10px 12px;
+}
+
+.list li.picked {
+  border-color: #6b4423;
+  background: #f6eadc;
+}
+
+.picked-mark {
+  color: #6b4423;
+  font-weight: 700;
 }
 
 .split {

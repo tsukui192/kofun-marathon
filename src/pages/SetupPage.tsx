@@ -120,16 +120,31 @@ export function SetupPage({
           今いる場所
         </button>
       </div>
-      {hits.length > 1 && <p className="muted">同じ名前が複数あります。起点にするものを選んでください。</p>}
+      {hits.length > 1 && (
+        <p className="muted">
+          {hits.some((hit) => start?.label === hit.label)
+            ? '「選択中」と出ているものが起点です。別のものにするときは、一覧から選び直してください。'
+            : '同じ名前が複数あります。起点にするものを選んでください。'}
+        </p>
+      )}
       {hits.length > 0 && (
         <ul className="list">
-          {hits.map((hit) => (
-            <li key={`${hit.lat}-${hit.lng}`}>
-              <button type="button" className="text-button" onClick={() => onStartChange(hit)}>
-                {hit.label}
-              </button>
-            </li>
-          ))}
+          {hits.map((hit) => {
+            const picked = start?.label === hit.label
+            return (
+              <li key={`${hit.lat}-${hit.lng}`} className={picked ? 'picked' : undefined}>
+                <button
+                  type="button"
+                  className="text-button"
+                  aria-pressed={picked}
+                  onClick={() => onStartChange(hit)}
+                >
+                  {picked && <span className="picked-mark">選択中</span>}
+                  {hit.label}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
       <p className="muted">{start ? `起点: ${start.label}` : '起点が未設定です。地名か現在地を選んでください。'}</p>
