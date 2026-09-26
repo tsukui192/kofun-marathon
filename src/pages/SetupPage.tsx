@@ -110,7 +110,7 @@ export function SetupPage({
       </p>
       <label>
         地名
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="堺市、二子山古墳" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="行田市、二子山古墳" />
       </label>
       <div className="row">
         <button type="button" onClick={() => void search()} disabled={searching || query.trim() === ''}>
