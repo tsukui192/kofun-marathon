@@ -94,21 +94,43 @@ function subsets(items: Kofun[]): Kofun[][] {
   return out
 }
 
+/** 行きと帰りが重なるとき、希望の距離へ寄せるために横へずらす距離（km）。 */
+export function returnOffsets(baseKm: number, targetKm: number): number[] {
+  const offsets: number[] = []
+  const add = (value: number) => {
+    const clamped = Math.min(6, Math.max(0.3, Math.round(value * 100) / 100))
+    if (offsets.some((item) => Math.abs(item - clamped) < 0.15)) return
+    offsets.push(clamped)
+  }
+  const shortfall = targetKm > 0 ? targetKm - baseKm : 0
+  if (shortfall > 0.5) {
+    const needed = shortfall / 1.5
+    add(needed)
+    add(needed * 0.85)
+    add(needed * 1.15)
+  }
+  if (shortfall <= 2) {
+    add(0.35)
+    add(0.6)
+    add(0.9)
+  }
+  return offsets
+}
+
 export function rankStopSets(start: LatLng, targetKm: number): Kofun[][] {
-  const radius = Math.min(30, Math.max(2, targetKm * 0.55))
-  let pool = nearest(start, radius, 10)
+  const radius = Math.min(30, Math.max(4, targetKm * 0.65))
+  let pool = nearest(start, radius, 8)
   if (pool.length === 0) pool = nearest(start, Math.min(40, Math.max(radius, targetKm)), 8)
   if (pool.length === 0) return []
 
-  const aimKm = targetKm * 0.75
   return subsets(pool)
     .map((stops) => [...stops].sort((a, b) => bearing(start, a) - bearing(start, b)))
     .filter((stops) => {
       const estimate = loopKm(start, stops)
-      return estimate >= targetKm * 0.35 && estimate <= targetKm * 1.05
+      return estimate >= targetKm * 0.5 && estimate <= targetKm * 1.4
     })
-    .sort((a, b) => Math.abs(loopKm(start, a) - aimKm) - Math.abs(loopKm(start, b) - aimKm))
-    .slice(0, 12)
+    .sort((a, b) => Math.abs(loopKm(start, a) - targetKm) - Math.abs(loopKm(start, b) - targetKm))
+    .slice(0, 6)
 }
 
 export function toStops(kofun: Kofun[]): CourseStop[] {

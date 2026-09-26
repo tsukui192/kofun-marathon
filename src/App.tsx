@@ -3,7 +3,7 @@ import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
 import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
 import { lapsForDistance, routeAround } from './lib/around.ts'
-import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, toStops } from './lib/course.ts'
+import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, returnOffsets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
@@ -57,13 +57,16 @@ export default function App() {
         [place.lng, place.lat],
       ])
     }
-    const inWindow = (meters: number) => target <= 0 || Math.abs(meters / 1000 - target) <= 0.5
-    const baseInWindow = inWindow(route.distanceMeters)
-    if (ringAreaKm2(route.line) < 0.2) {
+    const gapOf = (meters: number) => (target > 0 ? Math.abs(meters / 1000 - target) : 0)
+    const inWindow = (meters: number) => target <= 0 || gapOf(meters) <= 0.5
+    const baseKm = route.distanceMeters / 1000
+    const thin = ringAreaKm2(route.line) < 0.2
+    const short = target > 0 && baseKm + 0.5 < target
+    if (thin || short) {
       const far = selected.reduce((left, right) => (haversineKm(place, left) >= haversineKm(place, right) ? left : right))
       let opened: { distanceMeters: number; line: [number, number][] } | null = null
       let openedGap = Number.POSITIVE_INFINITY
-      for (const offsetKm of [0.35, 0.6, 0.9]) {
+      for (const offsetKm of returnOffsets(baseKm, target)) {
         for (const sign of [1, -1]) {
           const side = sidePoint(place, far, offsetKm, sign)
           try {
@@ -73,8 +76,10 @@ export default function App() {
               [side.lng, side.lat],
               [place.lng, place.lat],
             ])
-            if (ringAreaKm2(via.line) < 0.2) continue
-            const gap = target > 0 ? Math.abs(via.distanceMeters / 1000 - target) : 0
+            const grew = via.distanceMeters > route.distanceMeters + 400
+            if (ringAreaKm2(via.line) < 0.2 && !grew) continue
+            if (!inWindow(via.distanceMeters)) continue
+            const gap = gapOf(via.distanceMeters)
             if (!opened || gap < openedGap) {
               opened = via
               openedGap = gap
@@ -83,9 +88,10 @@ export default function App() {
             continue
           }
         }
+        if (opened && openedGap <= 0.2) break
       }
-      const openedInWindow = opened ? inWindow(opened.distanceMeters) : false
-      if (opened && (target <= 0 || openedInWindow || !baseInWindow)) route = opened
+      const baseInWindow = inWindow(route.distanceMeters)
+      if (opened && (target <= 0 || !baseInWindow || openedGap <= gapOf(route.distanceMeters))) route = opened
     }
     const distanceKm = route.distanceMeters / 1000
     const plan: CoursePlan = {
