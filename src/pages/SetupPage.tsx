@@ -17,7 +17,7 @@ type SetupPageProps = {
   onStartChange: (place: PlaceHit) => void
   onTargetChange: (value: string) => void
   onUsePerson: (name: string) => void
-  onCreate: (kind: 'loop' | 'wide' | 'out') => void
+  onCreate: (kind: 'loop' | 'wide' | 'out', laps: number) => void
   onOpenCourse: (course: CoursePlan) => void
   onDeleteCourse: (id: string) => void
 }
@@ -43,6 +43,7 @@ export function SetupPage({
   const [searchError, setSearchError] = useState('')
   const [searching, setSearching] = useState(false)
   const [courseKind, setCourseKind] = useState<'loop' | 'wide' | 'out'>('loop')
+  const [laps, setLaps] = useState('1')
   const startKofun = start ? kofunFromLabel(start.label) : null
   const startIsKofun = Boolean(startKofun)
   const center = useMemo(() => start ?? { lat: 34.564, lng: 135.487 }, [start])
@@ -165,7 +166,16 @@ export function SetupPage({
           </div>
         </div>
       )}
-      {(!startIsKofun || courseKind === 'loop') && (
+      {startIsKofun && courseKind === 'loop' && (
+        <div className="group">
+          <label>
+            周回数
+            <input inputMode="numeric" value={laps} onChange={(event) => setLaps(event.target.value)} />
+          </label>
+          <p className="muted">この古墳を中心に、まわりの道を回る回数です。1周の道を、選んだ回数だけ進みます。</p>
+        </div>
+      )}
+      {!startIsKofun && (
         <div className="group">
           <label>
             走りたい距離（km）
@@ -179,7 +189,11 @@ export function SetupPage({
         </div>
       )}
       {(error || searchError) && <p className="error">{error || searchError}</p>}
-      <button type="button" onClick={() => onCreate(startIsKofun ? courseKind : 'loop')} disabled={busy || !start}>
+      <button
+        type="button"
+        onClick={() => onCreate(startIsKofun ? courseKind : 'loop', Number(laps))}
+        disabled={busy || !start}
+      >
         {busy ? 'コースを作成中' : 'コースを作る'}
       </button>
 

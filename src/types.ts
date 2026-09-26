@@ -31,6 +31,7 @@ export type CoursePlan = {
   createdAt: string
   targetKm: number
   distanceKm: number
+  laps?: number
   start: PlaceHit
   stops: CourseStop[]
   line: [number, number][]

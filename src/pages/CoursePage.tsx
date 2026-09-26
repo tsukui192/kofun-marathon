@@ -31,6 +31,7 @@ export function CoursePage({
   onRevise,
 }: CoursePageProps) {
   const startKofun = kofunFromLabel(course.start.label)
+  const laps = course.laps ?? 0
   const [summaries, setSummaries] = useState<Record<string, WikiSummary>>({})
   const [loading, setLoading] = useState(true)
 
@@ -62,8 +63,11 @@ export function CoursePage({
         <p className="distance">
           {formatKm(course.distanceKm)}
           <span>
-            {course.targetKm > 0 ? `希望 ${formatKm(course.targetKm)} · ` : ''}
-            選んだ古墳の道のり
+            {laps > 0
+              ? `${laps}周（1周 ${formatKm(course.distanceKm / laps)}）`
+              : course.targetKm > 0
+                ? `希望 ${formatKm(course.targetKm)} · 選んだ古墳の道のり`
+                : '選んだ古墳の道のり'}
           </span>
         </p>
         <MapView
@@ -82,11 +86,13 @@ export function CoursePage({
           <KofunFacts name={startKofun.name} address={startKofun.address} />
         </section>
       )}
+      {laps === 0 && (
       <section className="group">
         <p className="notice">各古墳の説明は、下に出ています。</p>
         <p className="notice">回る古墳のチェックを変えると、道順が組み直されます。</p>
       </section>
-      <ol className="list">
+      )}
+      {laps === 0 && <ol className="list">
         {choices.map((stop) => {
           const picked = course.stops.some((item) => item.id === stop.id)
           const wiki = summaries[stop.id]
@@ -143,7 +149,7 @@ export function CoursePage({
           </li>
           )
         })}
-      </ol>
+      </ol>}
       {busy && <p className="muted">選んだ古墳で道順を作り直しています。</p>}
       {error && <p className="error">{error}</p>}
       <section className="group">
@@ -151,7 +157,11 @@ export function CoursePage({
           {formatKm(course.distanceKm)}
           <span>走行距離</span>
         </p>
-        <p className="muted">チェックした古墳を通り、起点に戻る道のりの長さです。</p>
+        <p className="muted">
+          {laps > 0
+            ? `この古墳を中心に、まわりの道を${laps}周する距離です。地図の輪は1周分です。`
+            : 'チェックした古墳を通り、起点に戻る道のりの長さです。'}
+        </p>
       </section>
       {saveMessage && (
         <p className={saveMessage === '保存しました。' ? 'muted' : 'error'}>{saveMessage}</p>

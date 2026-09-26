@@ -130,6 +130,23 @@ export function nearbyKofun(start: LatLng, radiusKm = 8, limit = 30): Kofun[] {
   return nearest(start, radiusKm, limit)
 }
 
+export function kofunMatching(place: PlaceHit): Kofun | null {
+  const named = kofunFromLabel(place.label)
+  if (!named) return null
+  const nearestSame = KOFUN.filter((item) => item.name === named.name)
+    .map((item) => ({ item, distance: haversineKm(place, item) }))
+    .sort((a, b) => a.distance - b.distance)[0]
+  if (nearestSame && nearestSame.distance <= 1) return nearestSame.item
+  return {
+    id: `place-${place.lat.toFixed(5)}-${place.lng.toFixed(5)}`,
+    name: named.name,
+    reading: '',
+    address: named.address,
+    lat: place.lat,
+    lng: place.lng,
+  }
+}
+
 export function kofunFromLabel(label: string): { name: string; address: string } | null {
   if (!label.includes('古墳')) return null
   const parts = label.split(/\s+/).filter(Boolean)
