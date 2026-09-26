@@ -57,11 +57,13 @@ export default function App() {
         [place.lng, place.lat],
       ])
     }
+    const inWindow = (meters: number) => target <= 0 || Math.abs(meters / 1000 - target) <= 0.5
+    const baseInWindow = inWindow(route.distanceMeters)
     if (ringAreaKm2(route.line) < 0.2) {
       const far = selected.reduce((left, right) => (haversineKm(place, left) >= haversineKm(place, right) ? left : right))
       let opened: { distanceMeters: number; line: [number, number][] } | null = null
-      let openedArea = 0
-      for (const offsetKm of [1.2, 0.6]) {
+      let openedGap = Number.POSITIVE_INFINITY
+      for (const offsetKm of [0.35, 0.6, 0.9]) {
         for (const sign of [1, -1]) {
           const side = sidePoint(place, far, offsetKm, sign)
           try {
@@ -71,17 +73,19 @@ export default function App() {
               [side.lng, side.lat],
               [place.lng, place.lat],
             ])
-            const area = ringAreaKm2(via.line)
-            if (area > openedArea) {
+            if (ringAreaKm2(via.line) < 0.2) continue
+            const gap = target > 0 ? Math.abs(via.distanceMeters / 1000 - target) : 0
+            if (!opened || gap < openedGap) {
               opened = via
-              openedArea = area
+              openedGap = gap
             }
           } catch {
             continue
           }
         }
       }
-      if (opened && openedArea >= 0.2) route = opened
+      const openedInWindow = opened ? inWindow(opened.distanceMeters) : false
+      if (opened && (target <= 0 || openedInWindow || !baseInWindow)) route = opened
     }
     const distanceKm = route.distanceMeters / 1000
     const plan: CoursePlan = {
@@ -205,7 +209,7 @@ export default function App() {
         bestSet = set
         break
       }
-      if (!best) {
+      if (!best || Math.abs(best.distanceKm - parsedKm) > 0.5) {
         setError('希望の距離の前後500m以内になる古墳が、この近くにはありません。')
         return
       }

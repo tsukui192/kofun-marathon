@@ -95,8 +95,8 @@ function subsets(items: Kofun[]): Kofun[][] {
 }
 
 export function rankStopSets(start: LatLng, targetKm: number): Kofun[][] {
-  const radius = Math.min(30, Math.max(2, targetKm * 0.7))
-  let pool = nearest(start, radius, 8)
+  const radius = Math.min(30, Math.max(2, targetKm * 0.55))
+  let pool = nearest(start, radius, 10)
   if (pool.length === 0) pool = nearest(start, Math.min(40, Math.max(radius, targetKm)), 8)
   if (pool.length === 0) return []
 
