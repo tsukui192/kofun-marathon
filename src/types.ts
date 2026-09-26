@@ -33,6 +33,7 @@ export type CoursePlan = {
   distanceKm: number
   laps?: number
   fitMessage?: string
+  heading?: string
   start: PlaceHit
   stops: CourseStop[]
   line: [number, number][]

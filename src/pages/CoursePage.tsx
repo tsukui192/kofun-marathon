@@ -57,7 +57,7 @@ export function CoursePage({
     <section className="page course-page">
       <header>
         <p className="step">2 / 3</p>
-        <h1>周回コース</h1>
+        <h1>{course.heading ?? '周回コース'}</h1>
       </header>
       <section className="group">
         <p className="distance">
@@ -160,7 +160,7 @@ export function CoursePage({
         </p>
         <p className="muted">
           {laps > 0
-            ? `この古墳を中心に、希望の距離にいちばん近い周回です。地図の輪は1周分です。`
+            ? `この古墳のまわりを何周かした、希望の距離のあたりの道のりです。地図の輪は1周分です。`
             : 'チェックした古墳を通り、起点に戻る道のりの長さです。'}
         </p>
       </section>

@@ -180,7 +180,7 @@ export function SetupPage({
           </div>
         </div>
       )}
-      {(!startIsKofun || courseKind === 'loop') && (
+      {(!startIsKofun || courseKind === 'loop' || courseKind === 'wide') && (
         <div className="group">
           <label>
             走りたい距離（km）
@@ -192,7 +192,7 @@ export function SetupPage({
           </label>
           <p className="muted">
             {startIsKofun
-              ? 'この古墳を中心に、希望の距離にいちばん近い周回を作ります。'
+              ? 'この古墳のまわりを何周かして、希望の距離のあたりになるコースを作ります。'
               : '出発した場所に戻る道を作り、その距離に近い古墳を勧めます。'}
           </p>
         </div>

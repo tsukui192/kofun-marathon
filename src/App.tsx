@@ -3,7 +3,7 @@ import { saitamaSample, saitamaSampleStop } from './data/sampleSaitama.ts'
 import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
 import { formatKm, haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
 import { lapsNear, routeAround } from './lib/around.ts'
-import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, rankWideStopSets, toStops } from './lib/course.ts'
+import { kofunMatching, nearbyKofun, orderLoop, rankStopSets, toStops } from './lib/course.ts'
 import { deleteCourse, loadCourses, loadPerson, loadVisits, rememberPerson, saveCourse } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
@@ -116,6 +116,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
       targetKm: 0,
       distanceKm,
+      heading: '行って帰りの一本道',
       start: start!,
       stops: toStops([kofun]),
       line: route.line,
@@ -125,7 +126,7 @@ export default function App() {
     setPage('course')
   }
 
-  async function createCircle(targetKm: number) {
+  async function createCircle(targetKm: number, heading: string) {
     const center = kofunMatching(start!)
     if (!center) {
       setError('起点の古墳が分かりません。古墳を選び直してください。')
@@ -138,10 +139,10 @@ export default function App() {
     const distanceKm = lapKm * laps
     const nearEnough = Math.abs(distanceKm - targetKm) / targetKm <= 0.2
     const fitMessage = !loop.suited
-      ? 'この古墳では周回コースが合いません。まわりの道が、古墳を中心にした輪になりません。'
+      ? `${heading}は、この古墳を中心にした輪になりません。`
       : nearEnough
         ? ''
-        : `周回コースは希望の距離に合いません。いちばん近いのは${laps}周の${formatKm(distanceKm)}です。`
+        : `${heading}は希望の距離に合いません。いちばん近いのは${laps}周の${formatKm(distanceKm)}です。`
     const plan: CoursePlan = {
       id: crypto.randomUUID(),
       title: `${shortPlace(start!.label)} · ${distanceKm.toFixed(1)}km · ${laps}周`,
@@ -150,6 +151,7 @@ export default function App() {
       distanceKm,
       laps,
       fitMessage: fitMessage || undefined,
+      heading,
       start: start!,
       stops: toStops([here]),
       line: loop.line,
@@ -170,8 +172,8 @@ export default function App() {
       setError('起点を選んでください。')
       return
     }
-    const circling = kind === 'loop' && Boolean(kofunMatching(start))
-    if (kind === 'loop' && (!Number.isFinite(parsedKm) || parsedKm < 1 || parsedKm > 50)) {
+    const aroundKofun = (kind === 'loop' || kind === 'wide') && Boolean(kofunMatching(start))
+    if ((kind === 'loop' || kind === 'wide') && (!Number.isFinite(parsedKm) || parsedKm < 1 || parsedKm > 50)) {
       setError('距離は1から50のkmで入力してください。')
       return
     }
@@ -181,11 +183,11 @@ export default function App() {
         await createOutAndBack()
         return
       }
-      if (circling) {
-        await createCircle(parsedKm)
+      if (aroundKofun) {
+        await createCircle(parsedKm, kind === 'wide' ? '大回りの一周' : '周回コース')
         return
       }
-      const sets = kind === 'wide' ? rankWideStopSets(start) : rankStopSets(start, parsedKm)
+      const sets = rankStopSets(start, parsedKm)
       if (sets.length === 0) {
         setError('この近くには、コースにできる古墳が見つかりませんでした。')
         return
@@ -194,8 +196,8 @@ export default function App() {
       let bestSet: Kofun[] = []
       let bestGap = Number.POSITIVE_INFINITY
       for (const set of sets) {
-        const plan = await routeThrough(start, toStops(set), kind === 'wide' ? 0 : parsedKm)
-        const gap = kind === 'wide' ? -plan.distanceKm : Math.abs(plan.distanceKm - parsedKm)
+        const plan = await routeThrough(start, toStops(set), parsedKm)
+        const gap = Math.abs(plan.distanceKm - parsedKm)
         if (gap < bestGap) {
           best = plan
           bestSet = set
