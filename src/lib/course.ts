@@ -100,10 +100,15 @@ export function rankStopSets(start: LatLng, targetKm: number): Kofun[][] {
   if (pool.length === 0) pool = nearest(start, Math.min(40, Math.max(radius, targetKm)), 8)
   if (pool.length === 0) return []
 
+  const aimKm = targetKm * 0.75
   return subsets(pool)
     .map((stops) => [...stops].sort((a, b) => bearing(start, a) - bearing(start, b)))
-    .sort((a, b) => Math.abs(loopKm(start, a) - targetKm) - Math.abs(loopKm(start, b) - targetKm))
-    .slice(0, 3)
+    .filter((stops) => {
+      const estimate = loopKm(start, stops)
+      return estimate >= targetKm * 0.35 && estimate <= targetKm * 1.05
+    })
+    .sort((a, b) => Math.abs(loopKm(start, a) - aimKm) - Math.abs(loopKm(start, b) - aimKm))
+    .slice(0, 12)
 }
 
 export function toStops(kofun: Kofun[]): CourseStop[] {

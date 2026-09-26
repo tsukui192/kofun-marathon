@@ -193,24 +193,20 @@ export default function App() {
       }
       const sets = rankStopSets(start, parsedKm)
       if (sets.length === 0) {
-        setError('この近くには、コースにできる古墳が見つかりませんでした。')
+        setError('希望の距離の前後500m以内になる古墳が、この近くにはありません。')
         return
       }
       let best: CoursePlan | null = null
       let bestSet: Kofun[] = []
-      let bestGap = Number.POSITIVE_INFINITY
       for (const set of sets) {
         const plan = await routeThrough(start, toStops(set), parsedKm)
-        const gap = Math.abs(plan.distanceKm - parsedKm)
-        if (gap < bestGap) {
-          best = plan
-          bestSet = set
-          bestGap = gap
-        }
-        if (parsedKm > 0 && gap / parsedKm <= 0.2) break
+        if (Math.abs(plan.distanceKm - parsedKm) > 0.5) continue
+        best = plan
+        bestSet = set
+        break
       }
       if (!best) {
-        setError('道順を作れませんでした。しばらくしてからもう一度試してください。')
+        setError('希望の距離の前後500m以内になる古墳が、この近くにはありません。')
         return
       }
       setChoices(toStops(bestSet))
@@ -238,7 +234,11 @@ export default function App() {
     setBusy(true)
     try {
       const plan = await routeThrough(course.start, selected, course.targetKm)
-      setCourse({ ...plan, id: course.id, createdAt: course.createdAt })
+      if (course.targetKm > 0 && Math.abs(plan.distanceKm - course.targetKm) > 0.5) {
+        setError('この組み合わせでは、希望の距離の前後500m以内になりません。')
+        return
+      }
+      setCourse({ ...plan, id: course.id, createdAt: course.createdAt, heading: course.heading })
     } catch (caught) {
       setError(
         caught instanceof Error
