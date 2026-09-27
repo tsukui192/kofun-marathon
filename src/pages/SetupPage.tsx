@@ -5,6 +5,50 @@ import { kofunFromLabel, nearbyKofun, openingKofun } from '../lib/course.ts'
 import { searchPlaces } from '../lib/api.ts'
 import type { CoursePlan, LatLng, PlaceHit, Visit } from '../types.ts'
 
+function previewLine(line: [number, number][]) {
+  if (line.length <= 80) return line
+  const step = Math.ceil(line.length / 80)
+  const points = line.filter((_, index) => index % step === 0)
+  const last = line[line.length - 1]
+  if (points[points.length - 1] !== last) points.push(last)
+  return points
+}
+
+function CourseThumb({ line }: { line: [number, number][] }) {
+  const points = previewLine(line)
+  if (points.length < 2) return null
+  const width = 88
+  const height = 88
+  const pad = 8
+  let minLat = Number.POSITIVE_INFINITY
+  let maxLat = Number.NEGATIVE_INFINITY
+  let minLng = Number.POSITIVE_INFINITY
+  let maxLng = Number.NEGATIVE_INFINITY
+  for (const [lat, lng] of points) {
+    minLat = Math.min(minLat, lat)
+    maxLat = Math.max(maxLat, lat)
+    minLng = Math.min(minLng, lng)
+    maxLng = Math.max(maxLng, lng)
+  }
+  const spanLng = maxLng - minLng || 0.001
+  const spanLat = maxLat - minLat || 0.001
+  const scale = Math.min((width - pad * 2) / spanLng, (height - pad * 2) / spanLat)
+  const offsetX = pad + (width - pad * 2 - spanLng * scale) / 2
+  const offsetY = pad + (height - pad * 2 - spanLat * scale) / 2
+  const drawn = points
+    .map(([lat, lng]) => {
+      const x = offsetX + (lng - minLng) * scale
+      const y = offsetY + (maxLat - lat) * scale
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  return (
+    <svg className="course-thumb" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      <polyline points={drawn} />
+    </svg>
+  )
+}
+
 type SetupPageProps = {
   start: PlaceHit | null
   targetKm: string
@@ -218,7 +262,8 @@ export function SetupPage({
       ) : (
         <ul className="list">
           {courses.map((course) => (
-            <li key={course.id} className="saved-course">
+            <li key={course.id} className="saved-row">
+              <div className="saved-main">
               {editingId === course.id ? (
                 <>
                   <label>
@@ -274,6 +319,8 @@ export function SetupPage({
                   </div>
                 </>
               )}
+              </div>
+              <CourseThumb line={course.line} />
             </li>
           ))}
         </ul>

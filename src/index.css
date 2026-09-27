@@ -148,11 +148,34 @@ button.secondary {
   gap: 8px;
 }
 
-.saved-course {
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.saved-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: 8px;
+}
+
+.course-thumb {
+  width: 84px;
+  height: 84px;
+  flex: none;
+  background: #f3eee6;
+  border-radius: 10px;
+}
+
+.course-thumb polyline {
+  fill: none;
+  stroke: #2f6f4e;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .text-button {
