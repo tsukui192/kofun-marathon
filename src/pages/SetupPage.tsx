@@ -90,6 +90,7 @@ export function SetupPage({
   const [courseKind, setCourseKind] = useState<'loop' | 'wide' | 'out'>('loop')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
+  const [mapCourse, setMapCourse] = useState<CoursePlan | null>(null)
   const startKofun = start ? kofunFromLabel(start.label) : null
   const startIsKofun = Boolean(startKofun)
   const opening = useMemo(() => openingKofun(), [])
@@ -320,10 +321,39 @@ export function SetupPage({
                 </>
               )}
               </div>
-              <CourseThumb line={course.line} />
+              {course.line.length > 1 && (
+                <button
+                  type="button"
+                  className="thumb-button"
+                  aria-label={`${course.title}の地図を大きく見る`}
+                  onClick={() => setMapCourse(course)}
+                >
+                  <CourseThumb line={course.line} />
+                </button>
+              )}
             </li>
           ))}
         </ul>
+      )}
+
+      {mapCourse && (
+        <div className="map-sheet">
+          <div className="split">
+            <h2>{mapCourse.title}</h2>
+            <button type="button" className="secondary" onClick={() => setMapCourse(null)}>
+              閉じる
+            </button>
+          </div>
+          <MapView
+            center={mapCourse.start}
+            start={mapCourse.start}
+            stops={mapCourse.stops}
+            nearby={[]}
+            line={mapCourse.line}
+            user={null}
+            draggable={false}
+          />
+        </div>
       )}
 
       <h2>訪れた古墳</h2>

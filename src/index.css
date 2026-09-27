@@ -162,10 +162,18 @@ button.secondary {
   gap: 8px;
 }
 
-.course-thumb {
+.thumb-button {
   width: 84px;
   height: 84px;
   flex: none;
+  padding: 0;
+  background: transparent;
+}
+
+.course-thumb {
+  width: 84px;
+  height: 84px;
+  display: block;
   background: #f3eee6;
   border-radius: 10px;
 }
@@ -211,6 +219,21 @@ button.secondary {
   border-radius: 12px;
   overflow: hidden;
   background: #e7e0d4;
+}
+
+.map-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 24px;
+  background: #f7f3eb;
+}
+
+.map-sheet .map {
+  height: calc(100vh - 120px);
 }
 
 .leaflet-container {
