@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>古墳マラソン｜制作発表（サンプル）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* 色と文字は、ここを書き換えるとページ全体が変わります。 */
+    :root {
+      --paper: #f3eee6;
+      --sheet: #fffdf8;
+      --ink: #241c14;
+      --muted: #6d6256;
+      --line: #ddd4c6;
+      --soil: #6b4423;
+      --soil-soft: #f6eadc;
+      --moss: #2f6f4e;
+      --hero: #1c1612;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    img { max-width: 100%; }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 28px;
+      background: rgba(243, 238, 230, 0.92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+    .brand {
+      font-family: "Shippori Mincho", serif;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+    }
+    .nav a.live {
+      color: var(--soil);
+      font-size: 0.92rem;
+    }
+
+    .hero {
+      min-height: calc(100vh - 53px);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 48px 28px 36px;
+      background:
+        radial-gradient(ellipse at 80% 20%, rgba(107, 68, 35, 0.35), transparent 50%),
+        var(--hero);
+      color: #f7f3eb;
+    }
+    .eyebrow {
+      margin: 0 0 18px;
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+    }
+    h1 {
+      margin: 0;
+      max-width: 12em;
+      font-family: "Shippori Mincho", serif;
+      font-size: clamp(2.4rem, 6vw, 4.6rem);
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: 0.02em;
+    }
+    .lead {
+      max-width: 36rem;
+      margin: 22px 0 0;
+      color: #e6dccf;
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 28px;
+    }
+    .pill {
+      border: 1px solid rgba(247, 243, 235, 0.35);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.82rem;
+    }
+    .scroll {
+      margin-top: 48px;
+      font-size: 0.75rem;
+      letter-spacing: 0.22em;
+      color: #cbbba8;
+    }
+
+    main { padding: 0 28px 80px; }
+    .section {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 88px 0 8px;
+    }
+    .kicker {
+      margin: 0 0 12px;
+      color: var(--soil);
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+    }
+    h2 {
+      margin: 0 0 18px;
+      max-width: 16em;
+      font-family: "Shippori Mincho", serif;
+      font-size: clamp(1.7rem, 3vw, 2.4rem);
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .intro { max-width: 40rem; margin: 0 0 28px; color: var(--muted); }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .step {
+      background: var(--sheet);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .step b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--soil);
+      font-family: "Shippori Mincho", serif;
+      font-size: 1.3rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .card {
+      background: var(--sheet);
+      border-radius: 16px;
+      padding: 22px;
+    }
+    .card .num {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--soil);
+      font-family: "Shippori Mincho", serif;
+      font-size: 1.4rem;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; }
+    .card p { margin: 0; color: var(--muted); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .flow article {
+      background: var(--sheet);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .flow h3 { margin: 8px 0; font-size: 1.05rem; }
+    .flow p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    .arrow {
+      align-self: center;
+      color: var(--soil);
+      font-family: "Shippori Mincho", serif;
+      font-size: 1.4rem;
+    }
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      background: var(--soil-soft);
+      color: var(--soil);
+      padding: 2px 8px;
+      font-size: 0.75rem;
+    }
+
+    .screens {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .screen h3 { margin: 12px 0 4px; font-size: 1rem; }
+    .screen p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+
+    .phone {
+      background: #1c1612;
+      border-radius: 28px;
+      padding: 10px;
+      box-shadow: 0 16px 40px rgba(36, 28, 20, 0.12);
+    }
+    .phone-screen {
+      background: #f7f3eb;
+      color: var(--ink);
+      border-radius: 20px;
+      min-height: 420px;
+      padding: 14px 12px 16px;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .step-label { margin: 0; color: var(--muted); font-size: 10px; }
+    .phone h4 { margin: 2px 0 10px; font-size: 16px; font-weight: 500; }
+    .field {
+      margin-bottom: 8px;
+      color: #5c5348;
+    }
+    .fake-input {
+      margin-top: 4px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--sheet);
+      padding: 6px 8px;
+      color: var(--ink);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      height: 30px;
+      margin: 0 4px 6px 0;
+      border-radius: 8px;
+      background: var(--soil);
+      color: var(--sheet);
+      padding: 0 8px;
+    }
+    .btn.ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .picked {
+      margin: 6px 0;
+      border: 2px solid var(--soil);
+      border-radius: 8px;
+      background: var(--soil-soft);
+      padding: 6px 8px;
+    }
+    .mark { display: block; color: var(--soil); font-weight: 700; }
+    .map {
+      height: 92px;
+      margin: 8px 0;
+      border-radius: 10px;
+      background:
+        linear-gradient(160deg, transparent 40%, rgba(47, 111, 78, 0.15) 40% 42%, transparent 42%),
+        #e7e0d4;
+      position: relative;
+      overflow: hidden;
+    }
+    .map svg { width: 100%; height: 100%; display: block; }
+    .km { margin: 0; font-size: 22px; }
+    .km span, .fine { display: block; color: var(--muted); font-size: 10px; font-weight: 400; }
+    .notice {
+      margin: 8px 0;
+      border-radius: 10px;
+      background: var(--soil);
+      color: var(--sheet);
+      padding: 8px;
+      font-weight: 700;
+    }
+    .row-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: var(--sheet);
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .thumb {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: #f3eee6;
+    }
+
+    .close {
+      max-width: 1040px;
+      margin: 72px auto 0;
+      padding: 48px 8px 8px;
+      border-top: 1px solid var(--line);
+    }
+    .close p { max-width: 36rem; }
+    footer {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 28px 28px 48px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 900px) {
+      .steps, .cards, .screens { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+      .nav { padding: 14px 16px; }
+      .hero, main { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="#top">古墳マラソン</a>
+    <a class="live" href="https://tsukui192.github.io/kofun-marathon/">実画面を見る</a>
+  </nav>
+
+  <!-- 冒頭。見出しと説明文はここを書き換える。 -->
+  <header class="hero" id="top">
+    <p class="eyebrow">SCHOOL PRODUCTION / SAMPLE</p>
+    <h1>旅先の古墳を、<br>走る距離にする。</h1>
+    <p class="lead">地名と走りたい距離から古墳を勧め、選んだ古墳だけの道と距離を出す。作るまでに難しかったことと、そこで入れた決まりを、このページにまとめました。</p>
+    <div class="pills">
+      <span class="pill">サンプル</span>
+      <span class="pill">手直し前提</span>
+      <span class="pill">画面は要点の見本</span>
+    </div>
+    <p class="scroll">SCROLL</p>
+  </header>
+
+  <main>
+    <!-- 01 経緯 -->
+    <section class="section" id="story">
+      <p class="kicker">01 / STORY</p>
+      <h2>旅先で古墳を巡りながら走る、から始まった。</h2>
+      <p class="intro">最初の形は、旅先で古墳を回るランニングコースを作るアプリでした。次に、パソコンを開いたままにしなくても、スマホだけで開けるようにしました。</p>
+      <div class="steps">
+        <article class="step">
+          <b>01</b>
+          旅先で、古墳を巡るランニングコースを作る。
+        </article>
+        <article class="step">
+          <b>02</b>
+          スマホだけで開ける公開ページにする。公開場所は GitHub Pages（ギットハブ・ページズ。プロジェクトのファイルをそのままウェブサイトにする仕組み）です。
+        </article>
+        <article class="step">
+          <b>03</b>
+          検索を始める前の地図は、行田市の埼玉古墳群。名前もその場に出します。検索例は「行田市、二子山古墳」です。
+        </article>
+      </div>
+    </section>
+
+    <!-- 02 大変だったこと -->
+    <section class="section" id="hard">
+      <p class="kicker">02 / HARD</p>
+      <h2>希望のキロ数は、道の長さとそろわない。</h2>
+      <p class="intro">道は希望の距離にぴったり出ません。説明のデータも、走る途中の位置も、保存の置き場所も、最初の想定どおりにはいきませんでした。</p>
+      <div class="cards">
+        <article class="card">
+          <span class="num">1</span>
+          <h3>距離の合わせ方</h3>
+          <p>長すぎるコースを出さない、希望の前後500mに収める、という直しを経て、いまは「希望以上で、1kmを超えない」に落ち着いています。古墳を中心に回るときは、周の数で距離が決まるので、別の決まりです。</p>
+        </article>
+        <article class="card">
+          <span class="num">2</span>
+          <h3>説明が欠けている</h3>
+          <p>古墳の説明は、公開データに記事がないことがよくあります。ないときに「見つかりませんでした」と出すと、故障に見えます。</p>
+        </article>
+        <article class="card">
+          <span class="num">3</span>
+          <h3>同じ名前と、検索の停止</h3>
+          <p>同じ名前の駅や古墳があります。国土地理院（こくどちりいん。国の地図の機関）の住所検索が返事しないときもあります。</p>
+        </article>
+        <article class="card">
+          <span class="num">4</span>
+          <h3>走ると計画から外れる</h3>
+          <p>走っているあいだの距離は、計画の道の長さとは別です。道を外れると、残りの計画が使えなくなります。</p>
+        </article>
+        <article class="card">
+          <span class="num">5</span>
+          <h3>保存がそのスマホだけ</h3>
+          <p>保存は、最初はそのスマホの中だけでした。別のスマホでは出ません。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 03 工夫 -->
+    <section class="section" id="craft">
+      <p class="kicker">03 / CRAFT</p>
+      <h2>コースの形を分け、届かないときはその旨を出す。</h2>
+      <p class="intro">起点が古墳のときは、次の3つから選びます。距離を入れるのは、周回と大回りだけです。</p>
+      <div class="flow">
+        <article>
+          <span class="tag">周回</span>
+          <h3>最大5周</h3>
+          <p>選んだ古墳を中心に回ります。5周で希望を超えるときは、超えない周数にします。1周でも超えるときは1周にして、その旨を伝えます。5周でも届かないときは5周のままにして、届かない旨を伝えます。地図には1周分の輪を出します。</p>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article>
+          <span class="tag">大回り</span>
+          <h3>近くを一周</h3>
+          <p>近くの古墳を、希望の距離以上で1kmを超えない一周で回ります。その距離になる古墳がなければ、その旨を出してコースは作りません。行きと帰りが同じ道に重なるときは、別の道で起点に戻します。</p>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article>
+          <span class="tag">往復</span>
+          <h3>行って帰り</h3>
+          <p>一本道で行って帰ります。距離の入力は出しません。</p>
+        </article>
+      </div>
+      <div class="cards" style="margin-top: 14px;">
+        <article class="card">
+          <h3>勧める古墳を絞る</h3>
+          <p>近くの古墳を全部は並べません。起点が古墳でない周回も、希望以上で1km以内の古墳だけ勧めます。選んだ古墳だけで道を組み直します。</p>
+        </article>
+        <article class="card">
+          <h3>説明は最初から出す</h3>
+          <p>押さなくても、各古墳の下に説明を出します。年代・大きさ・特記がどれもなければ「特になし」です。</p>
+        </article>
+        <article class="card">
+          <h3>同じ名前は一覧で選ぶ</h3>
+          <p>選んだ行には「選択中」と出します。住所検索が返事しなくても、駅名や地名から起点を決められます。</p>
+        </article>
+        <article class="card">
+          <h3>走った長さで測る</h3>
+          <p>走行中の距離は、実際に動いた長さです。道を外れたら、いまいる場所から残りの古墳を通り起点へ戻る道に引き直します。走った跡は地図に残します。</p>
+        </article>
+        <article class="card">
+          <h3>名前で別のスマホへ</h3>
+          <p>名前を入れて使うと、コースはその名前の分だけ残ります。最大20本です。同じ名前なら別のスマホにも出ます。置き場所は crudcrud（クラッドクラッド。小さな記録を無料で置ける外部のサービス）です。有料契約はありません。何日残すとは書かれておらず、記録が不安定なことがあります。各スマホの中のコースは、そのブラウザの記録を消さない限り残ります。訪れた古墳の記録は、そのスマホの中だけです。名前の文字が違うと、別の人のコースになります。</p>
+        </article>
+        <article class="card">
+          <h3>画面のまとまり</h3>
+          <p>案内、古墳、走行距離、ボタンは、余白のある別々のまとまりにしました。保存したコースの右側には道のりを小さく出し、それを押すと大きい地図になります。名前はあとから変えられます。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 04 画面。写真に差し替えるときは、各 .phone の中身を img に置き換える。 -->
+    <section class="section" id="screens">
+      <p class="kicker">04 / SCREENS</p>
+      <h2>準備、コース、走行、保存。</h2>
+      <p class="intro">掲載しているのは、動いている画面の写真ではなく、いまの画面の要点を描いた見本です。アプリ本体は別のページで開きます。</p>
+      <div class="screens">
+        <article class="screen">
+          <div class="phone">
+            <div class="phone-screen">
+              <p class="step-label">1 / 3</p>
+              <h4>古墳マラソン</h4>
+              <div class="field">地名<div class="fake-input">行田市</div></div>
+              <div class="picked"><span class="mark">選択中</span>二子山古墳</div>
+              <span class="btn">周回コース</span>
+              <span class="btn ghost">大回りの一周</span>
+              <div class="field">走りたい距離（km）<div class="fake-input">10</div></div>
+              <span class="btn">コースを作る</span>
+            </div>
+          </div>
+          <h3>準備</h3>
+          <p>地名を選び、古墳が起点なら形を選び、距離を入れてコースを作ります。</p>
+        </article>
+        <article class="screen">
+          <div class="phone">
+            <div class="phone-screen">
+              <p class="step-label">2 / 3</p>
+              <h4>周回コース</h4>
+              <p class="km">10.4 km<span>希望 10 km · 選んだ古墳の道のり</span></p>
+              <div class="map" aria-hidden="true">
+                <svg viewBox="0 0 120 70">
+                  <polyline points="18,50 40,22 78,16 100,40 62,58 18,50" fill="none" stroke="#2f6f4e" stroke-width="3" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <p class="notice">各古墳の説明は、下に出ています。</p>
+              <p class="fine">特になし</p>
+            </div>
+          </div>
+          <h3>コース</h3>
+          <p>走行距離と地図を同じ画面に出します。説明がない古墳は「特になし」です。</p>
+        </article>
+        <article class="screen">
+          <div class="phone">
+            <div class="phone-screen">
+              <p class="step-label">3 / 3</p>
+              <h4>走行中</h4>
+              <p class="km">3.2 km<span>走った距離</span></p>
+              <p class="fine">残りの道のり 7.1 km</p>
+              <div class="map" aria-hidden="true">
+                <svg viewBox="0 0 120 70">
+                  <polyline points="16,52 36,30 70,18 104,36" fill="none" stroke="#2f6f4e" stroke-width="3"/>
+                  <polyline points="16,52 28,46 34,40" fill="none" stroke="#6b4423" stroke-width="3"/>
+                  <circle cx="34" cy="40" r="3.5" fill="#6b4423"/>
+                </svg>
+              </div>
+              <p class="notice">道を外れたので、ここから先の道を引き直しました。</p>
+            </div>
+          </div>
+          <h3>走行</h3>
+          <p>距離は実際に動いた長さです。道を外れると、残りを引き直します。</p>
+        </article>
+        <article class="screen">
+          <div class="phone">
+            <div class="phone-screen">
+              <h4>保存したコース</h4>
+              <div class="row-item">
+                <div>
+                  <strong>二子山を回る</strong>
+                  <div class="fine">名前を変える　消す</div>
+                </div>
+                <svg class="thumb" viewBox="0 0 42 42" aria-hidden="true">
+                  <polyline points="8,30 16,12 30,10 34,24 18,32 8,30" fill="none" stroke="#2f6f4e" stroke-width="2"/>
+                </svg>
+              </div>
+              <p class="fine">最大20本。同じ名前なら、別のスマホにも出ます。</p>
+            </div>
+          </div>
+          <h3>保存</h3>
+          <p>右側の小さい道のりを押すと、作ったコースを大きい地図で出します。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="close">
+      <p class="kicker">CLOSE</p>
+      <h2>小さな旅の距離を、古墳の並びで決める。</h2>
+      <p>地名と走りたい距離から古墳を勧め、選んだ古墳だけの道と距離を出す。このページはサンプルです。文言は、このファイルを開いて直接直せます。</p>
+    </section>
+  </main>
+  <footer>
+    古墳マラソン / 制作発表のサンプル。アプリ本体は <a href="https://tsukui192.github.io/kofun-marathon/">https://tsukui192.github.io/kofun-marathon/</a> です。画面内のコース名と距離は見本です。
+  </footer>
+</body>
+</html>
