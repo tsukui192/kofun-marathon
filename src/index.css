@@ -148,6 +148,13 @@ button.secondary {
   gap: 8px;
 }
 
+.saved-course {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
 .text-button {
   height: auto;
   background: transparent;

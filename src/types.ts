@@ -29,6 +29,7 @@ export type CoursePlan = {
   id: string
   title: string
   createdAt: string
+  updatedAt?: string
   targetKm: number
   distanceKm: number
   laps?: number

@@ -20,6 +20,7 @@ function asCourse(record: RemoteRecord): CoursePlan | null {
     laps: record.laps,
     fitMessage: record.fitMessage,
     heading: record.heading,
+    updatedAt: record.updatedAt,
     start: record.start,
     stops: record.stops,
     line: record.line,
@@ -44,6 +45,15 @@ export async function publishSharedCourse(person: string, course: CoursePlan): P
     body: JSON.stringify({ ...course, person }),
   })
   if (!response.ok) throw new Error('別のスマホへコースを送れませんでした。')
+}
+
+export async function updateSharedCourse(remoteId: string, person: string, course: CoursePlan): Promise<void> {
+  const response = await fetch(`${COURSES_URL}/${remoteId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...course, person }),
+  })
+  if (!response.ok) throw new Error('別のスマホへ名前を送れませんでした。')
 }
 
 export async function deleteSharedCourse(remoteId: string): Promise<void> {

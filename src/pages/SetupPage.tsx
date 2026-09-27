@@ -19,6 +19,7 @@ type SetupPageProps = {
   onCreate: (kind: 'loop' | 'wide' | 'out') => void
   onOpenCourse: (course: CoursePlan) => void
   onDeleteCourse: (id: string) => void
+  onRenameCourse: (id: string, title: string) => void
 }
 
 export function SetupPage({
@@ -35,6 +36,7 @@ export function SetupPage({
   onCreate,
   onOpenCourse,
   onDeleteCourse,
+  onRenameCourse,
 }: SetupPageProps) {
   const [name, setName] = useState(person)
   const [query, setQuery] = useState('')
@@ -42,6 +44,8 @@ export function SetupPage({
   const [searchError, setSearchError] = useState('')
   const [searching, setSearching] = useState(false)
   const [courseKind, setCourseKind] = useState<'loop' | 'wide' | 'out'>('loop')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftTitle, setDraftTitle] = useState('')
   const startKofun = start ? kofunFromLabel(start.label) : null
   const startIsKofun = Boolean(startKofun)
   const opening = useMemo(() => openingKofun(), [])
@@ -214,13 +218,62 @@ export function SetupPage({
       ) : (
         <ul className="list">
           {courses.map((course) => (
-            <li key={course.id} className="split">
-              <button type="button" className="text-button" onClick={() => onOpenCourse(course)}>
-                {course.title}
-              </button>
-              <button type="button" className="secondary" onClick={() => onDeleteCourse(course.id)}>
-                消す
-              </button>
+            <li key={course.id} className="saved-course">
+              {editingId === course.id ? (
+                <>
+                  <label>
+                    コースの名前
+                    <input
+                      value={draftTitle}
+                      maxLength={40}
+                      onChange={(event) => setDraftTitle(event.target.value)}
+                    />
+                  </label>
+                  <div className="row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextTitle = draftTitle.trim()
+                        onRenameCourse(course.id, nextTitle)
+                        if (nextTitle && nextTitle.length <= 40) setEditingId(null)
+                      }}
+                    >
+                      この名前にする
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        setEditingId(null)
+                        setDraftTitle('')
+                      }}
+                    >
+                      やめる
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="text-button" onClick={() => onOpenCourse(course)}>
+                    {course.title}
+                  </button>
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        setEditingId(course.id)
+                        setDraftTitle(course.title)
+                      }}
+                    >
+                      名前を変える
+                    </button>
+                    <button type="button" className="secondary" onClick={() => onDeleteCourse(course.id)}>
+                      消す
+                    </button>
+                  </div>
+                </>
+              )}
             </li>
           ))}
         </ul>

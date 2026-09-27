@@ -4,7 +4,7 @@ import { fetchOptimalLoop, fetchRoute } from './lib/api.ts'
 import { haversineKm, ringAreaKm2, sidePoint } from './lib/geo.ts'
 import { lapsForDistance, routeAround } from './lib/around.ts'
 import { fitsDistance, kofunMatching, nearbyKofun, orderLoop, rankStopSets, returnOffsets, toStops } from './lib/course.ts'
-import { loadCourses, loadPerson, loadVisits, rememberPerson, removeAndUnshare, saveAndShare, syncCourses } from './lib/storage.ts'
+import { loadCourses, loadPerson, loadVisits, rememberPerson, removeAndUnshare, renameAndShare, saveAndShare, syncCourses } from './lib/storage.ts'
 import { CoursePage } from './pages/CoursePage.tsx'
 import { RunPage } from './pages/RunPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
@@ -304,6 +304,17 @@ export default function App() {
     if (!result.ok) setError(result.message)
   }
 
+  async function renameCourse(id: string, title: string) {
+    const result = await renameAndShare(id, title)
+    const next = loadCourses()
+    setCourses(next)
+    setCourse((current) => {
+      if (!current || current.id !== id) return current
+      return next.find((item) => item.id === id) ?? current
+    })
+    setError(result.ok ? '' : result.message)
+  }
+
   return (
     <main>
       {page === 'setup' && (
@@ -330,6 +341,7 @@ export default function App() {
             setPage('course')
           }}
           onDeleteCourse={removeCourse}
+          onRenameCourse={(id, title) => void renameCourse(id, title)}
         />
       )}
       {page === 'course' && course && (

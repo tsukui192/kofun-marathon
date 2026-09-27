@@ -1,4 +1,4 @@
-import { deleteSharedCourse, listSharedCourses, publishSharedCourse } from './cloud.ts'
+import { deleteSharedCourse, listSharedCourses, publishSharedCourse, updateSharedCourse } from './cloud.ts'
 import type { CoursePlan, Visit } from '../types.ts'
 
 const PERSON_KEY = 'kofun-marathon-person'
@@ -22,12 +22,24 @@ function deletedKey(person: string) {
 
 export type SyncResult = { ok: true; courses: CoursePlan[] } | { ok: false; message: string; courses: CoursePlan[] }
 
+function changedLater(local: CoursePlan, remote: CoursePlan) {
+  return (local.updatedAt ?? '') > (remote.updatedAt ?? '')
+}
+
 export function mergeCourses(local: CoursePlan[], remote: CoursePlan[], deletedIds: string[]) {
   const deleted = new Set(deletedIds)
   const dropRemote = remote.filter((course) => deleted.has(course.id))
+  const remoteById = new Map(remote.filter((course) => !deleted.has(course.id)).map((course) => [course.id, course]))
   const kept = new Map<string, CoursePlan>()
-  for (const course of remote) {
-    if (!deleted.has(course.id)) kept.set(course.id, course)
+  const replace: CoursePlan[] = []
+  for (const [id, remoteCourse] of remoteById) {
+    const localCourse = local.find((course) => course.id === id)
+    if (localCourse && changedLater(localCourse, remoteCourse)) {
+      kept.set(id, localCourse)
+      replace.push(localCourse)
+    } else {
+      kept.set(id, remoteCourse)
+    }
   }
   const push: CoursePlan[] = []
   for (const course of local) {
@@ -37,7 +49,7 @@ export function mergeCourses(local: CoursePlan[], remote: CoursePlan[], deletedI
     push.push(course)
   }
   const courses = [...kept.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, COURSE_LIMIT)
-  return { courses, push, dropRemote }
+  return { courses, push, dropRemote, replace }
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -166,6 +178,41 @@ export function saveAndShare(course: CoursePlan, person = loadPerson()): Promise
   })
 }
 
+export function renameAndShare(id: string, title: string, person = loadPerson()): Promise<StoreResult> {
+  const nextTitle = title.trim()
+  if (!person) return Promise.resolve({ ok: false, message: '先に名前を入れてください。' })
+  if (!nextTitle) return Promise.resolve({ ok: false, message: 'コースの名前を入力してください。' })
+  if (nextTitle.length > 40) return Promise.resolve({ ok: false, message: 'コースの名前は40文字までにしてください。' })
+  return enqueue(async () => {
+    const courses = loadCourses(person)
+    const current = courses.find((course) => course.id === id)
+    if (!current) return { ok: false, message: 'そのコースは、この一覧にありません。' }
+    const renamed = { ...current, title: nextTitle, updatedAt: new Date().toISOString() }
+    const saved = writeJson(
+      coursesKey(person),
+      courses.map((course) => (course.id === id ? renamed : course)),
+    )
+    if (!saved.ok) return saved
+    try {
+      const shared = await listSharedCourses(person)
+      const matches = shared.filter((item) => item.course.id === id)
+      const [first, ...rest] = matches
+      if (first) {
+        await updateSharedCourse(first.remoteId, person, renamed)
+        for (const extra of rest) await deleteSharedCourse(extra.remoteId)
+      } else {
+        await publishSharedCourse(person, renamed)
+      }
+      return { ok: true }
+    } catch {
+      return {
+        ok: false,
+        message: 'このスマホの名前は変えました。別のスマホへは、通信できるときにこのページを開くと送られます。',
+      }
+    }
+  })
+}
+
 export function removeAndUnshare(id: string, person = loadPerson()): Promise<StoreResult> {
   if (!person) return Promise.resolve({ ok: false, message: '先に名前を入れてください。' })
   return enqueue(async () => {
@@ -200,6 +247,12 @@ export function syncCourses(person = loadPerson()): Promise<SyncResult> {
       for (const course of merged.dropRemote) {
         const matches = shared.filter((item) => item.course.id === course.id)
         for (const match of matches) await deleteSharedCourse(match.remoteId)
+      }
+      for (const course of merged.replace) {
+        const matches = shared.filter((item) => item.course.id === course.id)
+        const [first, ...rest] = matches
+        if (first) await updateSharedCourse(first.remoteId, person, course)
+        for (const extra of rest) await deleteSharedCourse(extra.remoteId)
       }
       for (const course of merged.push) await publishSharedCourse(person, course)
       const saved = writeJson(coursesKey(person), merged.courses)
