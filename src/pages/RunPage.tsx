@@ -169,7 +169,7 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         <h1>走行中</h1>
       </header>
       <p className="distance">
-        {formatKm(runKm)}
+        {`${runKm.toFixed(2)} km`}
         <span>走った距離</span>
       </p>
       <p className="muted">
@@ -195,6 +195,7 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         track={track}
         user={user}
         draggable={false}
+        focusMeters={started && user ? 50 : undefined}
       />
       {active && (
         <article className="card">

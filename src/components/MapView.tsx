@@ -19,6 +19,7 @@ type MapViewProps = {
   track?: [number, number][]
   user: LatLng | null
   draggable: boolean
+  focusMeters?: number
   onStartChange?: (point: LatLng) => void
   onStopClick?: (stop: CourseStop) => void
   onNearbyClick?: (id: string) => void
@@ -33,6 +34,7 @@ export function MapView({
   track = NO_TRACK,
   user,
   draggable,
+  focusMeters,
   onStartChange,
   onStopClick,
   onNearbyClick,
@@ -140,15 +142,28 @@ export function MapView({
         })
         marker.addTo(layers)
       }
+      if (!map.getContainer().isConnected) return
+      if (focusMeters && user) {
+        const half = focusMeters / 2
+        const latScale = 111320
+        const lngScale = 111320 * Math.cos((user.lat * Math.PI) / 180) || latScale
+        map.fitBounds(
+          leaflet.latLngBounds(
+            [user.lat - half / latScale, user.lng - half / lngScale],
+            [user.lat + half / latScale, user.lng + half / lngScale],
+          ),
+          { animate: false, padding: [0, 0], maxZoom: 19 },
+        )
+        return
+      }
       const bounds = leaflet.latLngBounds([])
       if (start) bounds.extend([start.lat, start.lng])
       for (const stop of stops) bounds.extend([stop.lat, stop.lng])
       if (line.length > 1) bounds.extend(line)
-      if (!map.getContainer().isConnected) return
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2), { animate: false })
       else map.setView([center.lat, center.lng], 14, { animate: false })
     })
-  }, [ready, center, start, stops, nearby, line, track, user, draggable])
+  }, [ready, center, start, stops, nearby, line, track, user, draggable, focusMeters])
 
   return <div ref={hostRef} className="map" />
 }

@@ -57,13 +57,20 @@ export function measureStep(
   nextAt: number,
   accuracyM: number,
 ): { accept: boolean; addKm: number } {
-  if (Number.isFinite(accuracyM) && accuracyM > 35) return { accept: false, addKm: 0 }
   const seconds = (nextAt - previousAt) / 1000
-  if (seconds < 1) return { accept: false, addKm: 0 }
+  if (!Number.isFinite(seconds) || seconds < 1) return { accept: false, addKm: 0 }
+  // 街中のスマホは、正しい位置でも誤差が35mを超えることが多い。そこで捨てると距離が増えない。
+  if (Number.isFinite(accuracyM) && accuracyM > 100) return { accept: false, addKm: 0 }
   const step = haversineKm(previous, next)
   const speed = (step * 1000) / seconds
-  if (speed > 6.5) return { accept: true, addKm: 0 }
-  if (step < 0.008 || speed < 0.5) return { accept: false, addKm: 0 }
+  // 1秒で数十m跳ぶ点は、位置の飛び。基準は動かさず、次の点で実際の移動を足す。
+  if (speed > 8) {
+    if (seconds < 5) return { accept: false, addKm: 0 }
+    return { accept: true, addKm: Math.min(step, (7 * seconds) / 1000) }
+  }
+  const accuracy = Number.isFinite(accuracyM) ? accuracyM : 15
+  const minMeters = Math.min(20, Math.max(4, accuracy * 0.3))
+  if (step * 1000 < minMeters || speed < 0.35) return { accept: false, addKm: 0 }
   return { accept: true, addKm: step }
 }
 
