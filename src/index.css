@@ -136,6 +136,16 @@ button.secondary {
   background: #f6eadc;
 }
 
+.list li.arrived {
+  border-color: #2f6f4e;
+  background: #e7f2ec;
+}
+
+.list li.arrived .muted {
+  color: #2f6f4e;
+  font-weight: 700;
+}
+
 .picked-mark {
   color: #6b4423;
   font-weight: 700;

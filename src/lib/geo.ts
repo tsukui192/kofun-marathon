@@ -33,6 +33,39 @@ function metersFrom(origin: LatLng, point: LatLng): { north: number; east: numbe
   }
 }
 
+export function lineProgressKm(
+  point: LatLng,
+  line: [number, number][],
+): { alongKm: number; totalKm: number; gapKm: number } {
+  if (line.length < 2) return { alongKm: 0, totalKm: 0, gapKm: line.length === 1 ? haversineKm(point, { lat: line[0][0], lng: line[0][1] }) : 0 }
+  let bestGap = Number.POSITIVE_INFINITY
+  let bestAlong = 0
+  let cursor = 0
+  for (let index = 0; index < line.length - 1; index += 1) {
+    const start = { lat: line[index][0], lng: line[index][1] }
+    const end = { lat: line[index + 1][0], lng: line[index + 1][1] }
+    const segment = haversineKm(start, end)
+    const offset = metersFrom(start, point)
+    const side = metersFrom(start, end)
+    const length = side.north ** 2 + side.east ** 2
+    const raw = length === 0 ? 0 : (offset.north * side.north + offset.east * side.east) / length
+    const along = Math.max(0, Math.min(1, raw))
+    const gap = Math.hypot(offset.north - side.north * along, offset.east - side.east * along) / 1000
+    if (gap < bestGap) {
+      bestGap = gap
+      bestAlong = cursor + segment * along
+    }
+    cursor += segment
+  }
+  return { alongKm: bestAlong, totalKm: cursor, gapKm: bestGap }
+}
+
+export function remainingFromHere(point: LatLng, line: [number, number][], laps = 1, lapsDone = 0): number {
+  const progress = lineProgressKm(point, line)
+  const lapsLeft = Math.max(0, laps - lapsDone - 1)
+  return progress.gapKm + Math.max(0, progress.totalKm - progress.alongKm) + lapsLeft * progress.totalKm
+}
+
 export function distanceToLineKm(point: LatLng, line: [number, number][]): number {
   if (line.length === 0) return Number.POSITIVE_INFINITY
   let best = Number.POSITIVE_INFINITY

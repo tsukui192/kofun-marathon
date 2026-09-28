@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapView } from '../components/MapView.tsx'
 import { fetchRoute } from '../lib/api.ts'
-import { distanceToLineKm, formatKm, haversineKm, measureStep } from '../lib/geo.ts'
+import { distanceToLineKm, formatKm, haversineKm, lineProgressKm, measureStep, remainingFromHere } from '../lib/geo.ts'
 import { recordVisit } from '../lib/storage.ts'
 import type { CoursePlan, CourseStop, LatLng } from '../types.ts'
 
 const START_LIMIT_KM = 0.5
-const CHECK_KM = 0.1
+const CHECK_KM = 0.01
 const OFF_ROUTE_KM = 0.08
 const MAP_SIZES = [
   { id: 'small', label: '小さく', className: 'map-small' },
@@ -37,8 +37,10 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   const [runKm, setRunKm] = useState(initialKm)
   const [line, setLine] = useState(course.line)
   const [track, setTrack] = useState<[number, number][]>([])
-  const [remainKm, setRemainKm] = useState<number | null>(null)
   const [reviseNote, setReviseNote] = useState('')
+  const [arrivalNote, setArrivalNote] = useState('')
+  const [lapsDone, setLapsDone] = useState(0)
+  const [rerouted, setRerouted] = useState(false)
   const [checked, setChecked] = useState<CourseStop[]>(initialStop ? [initialStop] : [])
   const [active, setActive] = useState<CourseStop | null>(initialStop ?? null)
   const [gpsError, setGpsError] = useState('')
@@ -50,6 +52,8 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   const lineRef = useRef(course.line)
   const revisingRef = useRef(false)
   const revisedAtRef = useRef(0)
+  const progressRef = useRef(0)
+  const reroutedRef = useRef(false)
   const courseRef = useRef(course)
   courseRef.current = course
   const onVisitedRef = useRef(onVisited)
@@ -76,8 +80,11 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   useEffect(() => {
     lineRef.current = course.line
     setLine(course.line)
-    setRemainKm(null)
     setReviseNote('')
+    setLapsDone(0)
+    setRerouted(false)
+    reroutedRef.current = false
+    progressRef.current = 0
   }, [course])
 
   useEffect(() => {
@@ -136,20 +143,14 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         } else if (startedRef.current) {
           anchor = { point: next, at }
         }
-        for (const stop of course.stops) {
-          if (haversineKm(next, stop) > CHECK_KM || checkedIds.current.has(stop.id)) continue
-          checkedIds.current.add(stop.id)
-          const saved = recordVisit({
-            id: stop.id,
-            name: stop.name,
-            address: stop.address,
-            note: stop.note,
-            visitedAt: new Date().toISOString(),
-          })
-          if (!saved.ok) setGpsError(saved.message)
-          onVisitedRef.current()
-          setActive(stop)
-          setChecked((current) => [...current, stop])
+        const progress = lineProgressKm(next, lineRef.current)
+        const planLaps = courseRef.current.laps ?? 1
+        if (!reroutedRef.current && planLaps > 1 && progress.totalKm > 0) {
+          const fraction = progress.alongKm / progress.totalKm
+          if (progressRef.current > 0.75 && fraction < 0.2) {
+            setLapsDone((done) => Math.min(planLaps - 1, done + 1))
+          }
+          progressRef.current = fraction
         }
         if (
           startedRef.current &&
@@ -176,7 +177,9 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
             .then((route) => {
               lineRef.current = route.line
               setLine(route.line)
-              setRemainKm(route.distanceMeters / 1000)
+              reroutedRef.current = true
+              setRerouted(true)
+              progressRef.current = 0
               setReviseNote('道を外れたので、ここから先の道を引き直しました。')
             })
             .catch(() => {
@@ -195,6 +198,29 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
     return () => navigator.geolocation.clearWatch(watch)
   }, [course, initialStop])
 
+  useEffect(() => {
+    if (!user) return
+    for (const stop of course.stops) {
+      if (checkedIds.current.has(stop.id) || haversineKm(user, stop) > CHECK_KM) continue
+      checkedIds.current.add(stop.id)
+      const saved = recordVisit({
+        id: stop.id,
+        name: stop.name,
+        address: stop.address,
+        note: stop.note,
+        visitedAt: new Date().toISOString(),
+      })
+      if (!saved.ok) setGpsError(saved.message)
+      onVisitedRef.current()
+      setActive(stop)
+      setChecked((current) => [...current, stop])
+      setArrivalNote(`${stop.name}に到着しました。`)
+    }
+  }, [user, course.stops])
+
+  const planLaps = rerouted ? 1 : Math.max(1, course.laps ?? 1)
+  const remainKm = user ? remainingFromHere(user, line, planLaps, lapsDone) : course.distanceKm
+
   return (
     <section className="page">
       <header>
@@ -211,11 +237,11 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
           <span>走った時間</span>
         </p>
       </div>
-      <p className="muted">
-        {remainKm === null
-          ? `コース ${formatKm(course.distanceKm)}`
-          : `残りの道のり ${formatKm(remainKm)}`}
+      <p className="distance">
+        {`${Math.max(0, remainKm).toFixed(2)} km`}
+        <span>残りの距離</span>
       </p>
+      {arrivalNote && <p className="notice">{arrivalNote}</p>}
       {reviseNote && <p className="notice">{reviseNote}</p>}
       {!canRun && (
         <p className="error">
@@ -264,9 +290,9 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         {course.stops.map((stop, index) => {
           const done = checked.some((item) => item.id === stop.id)
           return (
-            <li key={stop.id}>
+            <li key={stop.id} className={done ? 'arrived' : undefined}>
               <strong>
-                {done ? '済' : index + 1} {stop.name}
+                {done ? '到着' : index + 1} {stop.name}
               </strong>
               <p className="muted">{done ? '到着' : '未着'}</p>
             </li>
