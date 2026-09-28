@@ -221,6 +221,10 @@ button.secondary {
   background: #e7e0d4;
 }
 
+.map.map-small { height: 180px; }
+.map.map-medium { height: 280px; }
+.map.map-large { height: min(68vh, 640px); }
+
 .map-sheet {
   position: fixed;
   inset: 0;

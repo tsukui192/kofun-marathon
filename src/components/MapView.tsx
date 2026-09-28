@@ -20,6 +20,7 @@ type MapViewProps = {
   user: LatLng | null
   draggable: boolean
   focusMeters?: number
+  className?: string
   onStartChange?: (point: LatLng) => void
   onStopClick?: (stop: CourseStop) => void
   onNearbyClick?: (id: string) => void
@@ -35,6 +36,7 @@ export function MapView({
   user,
   draggable,
   focusMeters,
+  className,
   onStartChange,
   onStopClick,
   onNearbyClick,
@@ -76,6 +78,11 @@ export function MapView({
       setReady(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    mapRef.current?.invalidateSize()
+  }, [ready, className])
 
   useEffect(() => {
     const map = mapRef.current
@@ -165,5 +172,5 @@ export function MapView({
     })
   }, [ready, center, start, stops, nearby, line, track, user, draggable, focusMeters])
 
-  return <div ref={hostRef} className="map" />
+  return <div ref={hostRef} className={className ? `map ${className}` : 'map'} />
 }

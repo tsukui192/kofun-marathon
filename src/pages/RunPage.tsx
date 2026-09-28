@@ -9,6 +9,23 @@ const START_LIMIT_KM = 0.5
 const CHECK_KM = 0.1
 const OFF_ROUTE_KM = 0.08
 
+type MapSize = 'small' | 'medium' | 'large'
+
+const MAP_SIZES: { id: MapSize; label: string }[] = [
+  { id: 'small', label: '小さく' },
+  { id: 'medium', label: 'ふつう' },
+  { id: 'large', label: '大きく' },
+]
+
+function formatElapsed(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const ss = String(seconds).padStart(2, '0')
+  if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${ss}`
+  return `${minutes}:${ss}`
+}
+
 type RunPageProps = {
   course: CoursePlan
   onExit: () => void
@@ -27,6 +44,9 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   const [checked, setChecked] = useState<CourseStop[]>(initialStop ? [initialStop] : [])
   const [active, setActive] = useState<CourseStop | null>(initialStop ?? null)
   const [gpsError, setGpsError] = useState('')
+  const [elapsedSec, setElapsedSec] = useState(0)
+  const [mapSize, setMapSize] = useState<MapSize>('medium')
+  const startedAtRef = useRef<number | null>(null)
   const checkedIds = useRef(new Set(initialStop ? [initialStop.id] : []))
   const startedRef = useRef(Boolean(initialStop))
   const [started, setStarted] = useState(Boolean(initialStop))
@@ -46,6 +66,18 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
     setRemainKm(null)
     setReviseNote('')
   }, [course])
+
+  useEffect(() => {
+    if (!started) return
+    if (startedAtRef.current === null) startedAtRef.current = Date.now()
+    const tick = () => {
+      if (startedAtRef.current === null) return
+      setElapsedSec(Math.floor((Date.now() - startedAtRef.current) / 1000))
+    }
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [started])
 
   useEffect(() => {
     let lock: WakeLockSentinel | null = null
@@ -172,6 +204,10 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         {`${runKm.toFixed(2)} km`}
         <span>走った距離</span>
       </p>
+      <p className="distance">
+        {formatElapsed(elapsedSec)}
+        <span>走った時間</span>
+      </p>
       <p className="muted">
         {remainKm === null
           ? `コース ${formatKm(course.distanceKm)}`
@@ -186,17 +222,33 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         </p>
       )}
       {gpsError && <p className="error">{gpsError}</p>}
-      <MapView
-        center={course.start}
-        start={course.start}
-        stops={course.stops}
-        nearby={[]}
-        line={line}
-        track={track}
-        user={user}
-        draggable={false}
-        focusMeters={started && user ? 50 : undefined}
-      />
+      <div className="group">
+        <div className="row">
+          {MAP_SIZES.map((size) => (
+            <button
+              key={size.id}
+              type="button"
+              className={mapSize === size.id ? undefined : 'secondary'}
+              aria-pressed={mapSize === size.id}
+              onClick={() => setMapSize(size.id)}
+            >
+              {size.label}
+            </button>
+          ))}
+        </div>
+        <MapView
+          center={course.start}
+          start={course.start}
+          stops={course.stops}
+          nearby={[]}
+          line={line}
+          track={track}
+          user={user}
+          draggable={false}
+          focusMeters={started && user ? 50 : undefined}
+          className={`map-${mapSize}`}
+        />
+      </div>
       {active && (
         <article className="card">
           <p className="muted">チェック済み</p>
