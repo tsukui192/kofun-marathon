@@ -8,20 +8,18 @@ import type { CoursePlan, CourseStop, LatLng } from '../types.ts'
 const START_LIMIT_KM = 0.5
 const CHECK_KM = 0.1
 const OFF_ROUTE_KM = 0.08
-
-type MapSize = 'small' | 'medium' | 'large'
-
-const MAP_SIZES: { id: MapSize; label: string }[] = [
-  { id: 'small', label: '小さく' },
-  { id: 'medium', label: 'ふつう' },
-  { id: 'large', label: '大きく' },
-]
+const MAP_SIZES = [
+  { id: 'small', label: '小さく', className: 'map-small' },
+  { id: 'medium', label: 'ふつう', className: 'map-medium' },
+  { id: 'large', label: '大きく', className: 'map-large' },
+] as const
 
 function formatElapsed(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  const ss = String(seconds).padStart(2, '0')
+  const seconds = Math.max(0, totalSeconds)
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remain = seconds % 60
+  const ss = String(remain).padStart(2, '0')
   if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${ss}`
   return `${minutes}:${ss}`
 }
@@ -45,8 +43,7 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   const [active, setActive] = useState<CourseStop | null>(initialStop ?? null)
   const [gpsError, setGpsError] = useState('')
   const [elapsedSec, setElapsedSec] = useState(0)
-  const [mapSize, setMapSize] = useState<MapSize>('medium')
-  const startedAtRef = useRef<number | null>(null)
+  const [mapSize, setMapSize] = useState<(typeof MAP_SIZES)[number]['id']>('medium')
   const checkedIds = useRef(new Set(initialStop ? [initialStop.id] : []))
   const startedRef = useRef(Boolean(initialStop))
   const [started, setStarted] = useState(Boolean(initialStop))
@@ -61,23 +58,27 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   const canRun = started || (awayKm !== null && awayKm <= START_LIMIT_KM)
 
   useEffect(() => {
+    if (!started) return
+    const startedAt = Date.now()
+    const tick = () => setElapsedSec(Math.floor((Date.now() - startedAt) / 1000))
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [started])
+
+  useEffect(() => {
     lineRef.current = course.line
     setLine(course.line)
     setRemainKm(null)
     setReviseNote('')
   }, [course])
-
-  useEffect(() => {
-    if (!started) return
-    if (startedAtRef.current === null) startedAtRef.current = Date.now()
-    const tick = () => {
-      if (startedAtRef.current === null) return
-      setElapsedSec(Math.floor((Date.now() - startedAtRef.current) / 1000))
-    }
-    tick()
-    const timer = window.setInterval(tick, 1000)
-    return () => window.clearInterval(timer)
-  }, [started])
 
   useEffect(() => {
     let lock: WakeLockSentinel | null = null
@@ -200,14 +201,16 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         <p className="step">3 / 3</p>
         <h1>走行中</h1>
       </header>
-      <p className="distance">
-        {`${runKm.toFixed(2)} km`}
-        <span>走った距離</span>
-      </p>
-      <p className="distance">
-        {formatElapsed(elapsedSec)}
-        <span>走った時間</span>
-      </p>
+      <div className="run-stats">
+        <p className="distance">
+          {`${runKm.toFixed(2)} km`}
+          <span>走った距離</span>
+        </p>
+        <p className="distance">
+          {formatElapsed(elapsedSec)}
+          <span>走った時間</span>
+        </p>
+      </div>
       <p className="muted">
         {remainKm === null
           ? `コース ${formatKm(course.distanceKm)}`
@@ -223,13 +226,13 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
       )}
       {gpsError && <p className="error">{gpsError}</p>}
       <div className="group">
+        <p className="muted">地図の大きさ</p>
         <div className="row">
           {MAP_SIZES.map((size) => (
             <button
               key={size.id}
               type="button"
               className={mapSize === size.id ? undefined : 'secondary'}
-              aria-pressed={mapSize === size.id}
               onClick={() => setMapSize(size.id)}
             >
               {size.label}
@@ -246,7 +249,7 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
           user={user}
           draggable={false}
           focusMeters={started && user ? 50 : undefined}
-          className={`map-${mapSize}`}
+          className={MAP_SIZES.find((size) => size.id === mapSize)?.className}
         />
       </div>
       {active && (

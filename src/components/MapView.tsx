@@ -80,11 +80,6 @@ export function MapView({
   }, [])
 
   useEffect(() => {
-    if (!ready) return
-    mapRef.current?.invalidateSize()
-  }, [ready, className])
-
-  useEffect(() => {
     const map = mapRef.current
     const layers = layerRef.current
     if (!ready || !map || !layers) return
@@ -150,6 +145,7 @@ export function MapView({
         marker.addTo(layers)
       }
       if (!map.getContainer().isConnected) return
+      map.invalidateSize()
       if (focusMeters && user) {
         const half = focusMeters / 2
         const latScale = 111320
@@ -170,7 +166,7 @@ export function MapView({
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2), { animate: false })
       else map.setView([center.lat, center.lng], 14, { animate: false })
     })
-  }, [ready, center, start, stops, nearby, line, track, user, draggable, focusMeters])
+  }, [ready, center, start, stops, nearby, line, track, user, draggable, focusMeters, className])
 
   return <div ref={hostRef} className={className ? `map ${className}` : 'map'} />
 }
