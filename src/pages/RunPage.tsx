@@ -8,11 +8,6 @@ import type { CoursePlan, CourseStop, LatLng } from '../types.ts'
 const START_LIMIT_KM = 0.5
 const CHECK_KM = 0.01
 const OFF_ROUTE_KM = 0.08
-const MAP_SIZES = [
-  { id: 'small', label: '小さく', className: 'map-small' },
-  { id: 'medium', label: 'ふつう', className: 'map-medium' },
-  { id: 'large', label: '大きく', className: 'map-large' },
-] as const
 
 function formatElapsed(totalSeconds: number): string {
   const seconds = Math.max(0, totalSeconds)
@@ -45,7 +40,6 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
   const [active, setActive] = useState<CourseStop | null>(initialStop ?? null)
   const [gpsError, setGpsError] = useState('')
   const [elapsedSec, setElapsedSec] = useState(0)
-  const [mapSize, setMapSize] = useState<(typeof MAP_SIZES)[number]['id']>('medium')
   const checkedIds = useRef(new Set(initialStop ? [initialStop.id] : []))
   const startedRef = useRef(Boolean(initialStop))
   const [started, setStarted] = useState(Boolean(initialStop))
@@ -251,33 +245,18 @@ export function RunPage({ course, onExit, onVisited, initialStop, initialKm = 0 
         </p>
       )}
       {gpsError && <p className="error">{gpsError}</p>}
-      <div className="group">
-        <p className="muted">地図の大きさ</p>
-        <div className="row">
-          {MAP_SIZES.map((size) => (
-            <button
-              key={size.id}
-              type="button"
-              className={mapSize === size.id ? undefined : 'secondary'}
-              onClick={() => setMapSize(size.id)}
-            >
-              {size.label}
-            </button>
-          ))}
-        </div>
-        <MapView
-          center={course.start}
-          start={course.start}
-          stops={course.stops}
-          nearby={[]}
-          line={line}
-          track={track}
-          user={user}
-          draggable={false}
-          focusMeters={started && user ? 50 : undefined}
-          className={MAP_SIZES.find((size) => size.id === mapSize)?.className}
-        />
-      </div>
+      <MapView
+        center={course.start}
+        start={course.start}
+        stops={course.stops}
+        nearby={[]}
+        line={line}
+        track={track}
+        user={user}
+        draggable={false}
+        focusMeters={started && user ? 50 : undefined}
+        className="map-large"
+      />
       {active && (
         <article className="card">
           <p className="muted">チェック済み</p>
