@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>古墳マラソン｜制作発表（サンプル）</title>
+  <title>古墳マラソン｜AI Driven School 卒業制作</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
@@ -85,20 +85,15 @@
     .lead {
       max-width: 36rem;
       margin: 22px 0 0;
-      color: #e6dccf;
+      color: #f7f3eb;
+      font-family: "Shippori Mincho", serif;
+      font-weight: 700;
+      font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+      line-height: 1.55;
+      letter-spacing: 0.03em;
     }
-    .pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 28px;
-    }
-    .pill {
-      border: 1px solid rgba(247, 243, 235, 0.35);
-      border-radius: 999px;
-      padding: 4px 12px;
-      font-size: 0.82rem;
-    }
+    .lead span { display: block; }
+    .lead .hit { color: #f0c48a; }
     .scroll {
       margin-top: 48px;
       font-size: 0.75rem;
@@ -144,6 +139,8 @@
       color: var(--soil);
       font-family: "Shippori Mincho", serif;
       font-size: 1.3rem;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
     .cards {
@@ -324,14 +321,13 @@
 
   <!-- 冒頭。見出しと説明文はここを書き換える。 -->
   <header class="hero" id="top">
-    <p class="eyebrow">SCHOOL PRODUCTION / SAMPLE</p>
-    <h1>旅先の古墳を、<br>走る距離にする。</h1>
-    <p class="lead">地名と走りたい距離から古墳を勧め、選んだ古墳だけの道と距離を出す。作るまでに難しかったことと、そこで入れた決まりを、このページにまとめました。</p>
-    <div class="pills">
-      <span class="pill">サンプル</span>
-      <span class="pill">手直し前提</span>
-      <span class="pill">画面は要点の見本</span>
-    </div>
+    <p class="eyebrow">AI Driven School / 卒業制作</p>
+    <h1>マラソンと古墳を、<br>一瞬で。</h1>
+    <p class="lead">
+      <span>走りたい。スマホを開く。</span>
+      <span class="hit">そのルートは古墳へ導く。</span>
+      <span>２つの趣味は、同時に出発する。</span>
+    </p>
     <p class="scroll">SCROLL</p>
   </header>
 
@@ -339,20 +335,20 @@
     <!-- 01 経緯 -->
     <section class="section" id="story">
       <p class="kicker">01 / STORY</p>
-      <h2>旅先で古墳を巡りながら走る、から始まった。</h2>
-      <p class="intro">最初の形は、旅先で古墳を回るランニングコースを作るアプリでした。次に、パソコンを開いたままにしなくても、スマホだけで開けるようにしました。</p>
+      <h2>大好きな趣味を同時に瞬時に行うには、このアプリが必要だった！</h2>
+      <p class="intro">出張の朝、ふと思う。走りたい。せっかくなら、好きな古墳も見たい。靴はすぐ履ける。なのに、足が動くまでが長い。どの古墳があるか。どんな古墳か。何キロか。どう走るか。調べて、考えて、また調べる。好きな２つのことが、準備の山になる。一気に作ってほしい。AI Driven Schoolで学んだのは、その面倒をAI（人工知能。調べたり、組み立てたりを任せる仕組み）に任せることだった。それがこのアプリを作ったきっかけです。</p>
       <div class="steps">
         <article class="step">
-          <b>01</b>
-          旅先で、古墳を巡るランニングコースを作る。
+          <b>01 趣味</b>
+          長距離ランニングと古墳巡り。休みの日は古墳へ出かけ、その周辺を走りながら巡る。大好きな２つの趣味を、同時に行える。
         </article>
         <article class="step">
-          <b>02</b>
-          スマホだけで開ける公開ページにする。公開場所は GitHub Pages（ギットハブ・ページズ。プロジェクトのファイルをそのままウェブサイトにする仕組み）です。
+          <b>02 面倒</b>
+          どこに古墳があるかを調べ、その古墳がどんなものかを調べる。興味が湧いた古墳を巡るルート（走る道順）を、地図を見ながら決める。その距離は、いったいどのくらいだろう。
         </article>
         <article class="step">
-          <b>03</b>
-          検索を始める前の地図は、行田市の埼玉古墳群。名前もその場に出します。検索例は「行田市、二子山古墳」です。
+          <b>03 開発</b>
+          スマホに、現在地と走りたい距離を入れる。あとは画面を押すだけ。古墳の情報とルートが一目で分かる。あとはシューズを履いて、ランニングを楽しむだけ。
         </article>
       </div>
     </section>
@@ -360,8 +356,8 @@
     <!-- 02 大変だったこと -->
     <section class="section" id="hard">
       <p class="kicker">02 / HARD</p>
-      <h2>希望のキロ数は、道の長さとそろわない。</h2>
-      <p class="intro">道は希望の距離にぴったり出ません。説明のデータも、走る途中の位置も、保存の置き場所も、最初の想定どおりにはいきませんでした。</p>
+      <h2>一瞬で出すほど、道は素直ではなかった。</h2>
+      <p class="intro">希望の距離に、道はぴったり合わない。説明も、走っているあいだの位置も、残し方も、最初の想像とは違いました。</p>
       <div class="cards">
         <article class="card">
           <span class="num">1</span>
@@ -381,7 +377,7 @@
         <article class="card">
           <span class="num">4</span>
           <h3>走ると計画から外れる</h3>
-          <p>走っているあいだの距離は、計画の道の長さとは別です。道を外れると、残りの計画が使えなくなります。</p>
+          <p>走っているあいだの距離は、計画の道の長さとは別です。街中では位置が数十mずれることがあり、そのたびに移動を捨てると距離が止まります。道を外れると、残りの計画も使えなくなります。</p>
         </article>
         <article class="card">
           <span class="num">5</span>
@@ -394,8 +390,8 @@
     <!-- 03 工夫 -->
     <section class="section" id="craft">
       <p class="kicker">03 / CRAFT</p>
-      <h2>コースの形を分け、届かないときはその旨を出す。</h2>
-      <p class="intro">起点が古墳のときは、次の3つから選びます。距離を入れるのは、周回と大回りだけです。</p>
+      <h2>巡る形を選ぶ。届かなければ、その場で伝える。</h2>
+      <p class="intro">出発地点が古墳のときは、次の3つから選びます。距離を入れるのは、周回と大回りだけです。</p>
       <div class="flow">
         <article>
           <span class="tag">周回</span>
@@ -430,7 +426,11 @@
         </article>
         <article class="card">
           <h3>走った長さで測る</h3>
-          <p>走行中の距離は、実際に動いた長さです。道を外れたら、いまいる場所から残りの古墳を通り起点へ戻る道に引き直します。走った跡は地図に残します。</p>
+          <p>走行中の距離は、実際に動いた長さです。街中で位置が数十mずれても、その移動を捨てて距離が止まらないようにしています。道を外れたら、いまいる場所から残りの古墳を通り、起点へ戻る道に引き直します。走った跡は地図に残します。</p>
+        </article>
+        <article class="card">
+          <h3>走っているあいだ</h3>
+          <p>走った時間も出します。起点の近くに来るまでは、時間は増えません。残りは、今いる場所からコースの終わりまでの距離で、進むと減ります。古墳の10m以内に入ると、到着したと分かります。地図は画面の大きめの領域に固定します。走り出すと、最初は今いる場所のまわり約50mを出します。指で広げたり狭めたりした範囲は、位置が更新されても戻りません。</p>
         </article>
         <article class="card">
           <h3>名前で別のスマホへ</h3>
@@ -446,8 +446,8 @@
     <!-- 04 画面。写真に差し替えるときは、各 .phone の中身を img に置き換える。 -->
     <section class="section" id="screens">
       <p class="kicker">04 / SCREENS</p>
-      <h2>準備、コース、走行、保存。</h2>
-      <p class="intro">掲載しているのは、動いている画面の写真ではなく、いまの画面の要点を描いた見本です。アプリ本体は別のページで開きます。</p>
+      <h2>作る。巡る。走る。残す。</h2>
+      <p class="intro">写真ではなく、いまの画面の要点です。本体はスマホで開きます。走りたいときに、そこからルートを作ります。</p>
       <div class="screens">
         <article class="screen">
           <div class="phone">
@@ -458,12 +458,13 @@
               <div class="picked"><span class="mark">選択中</span>二子山古墳</div>
               <span class="btn">周回コース</span>
               <span class="btn ghost">大回りの一周</span>
+              <span class="btn ghost">行って帰りの一本道</span>
               <div class="field">走りたい距離（km）<div class="fake-input">10</div></div>
               <span class="btn">コースを作る</span>
             </div>
           </div>
           <h3>準備</h3>
-          <p>地名を選び、古墳が起点なら形を選び、距離を入れてコースを作ります。</p>
+          <p>地名を入れる。古墳から走るなら形を選び、距離を入れて、ルートがその場でできます。</p>
         </article>
         <article class="screen">
           <div class="phone">
@@ -481,7 +482,7 @@
             </div>
           </div>
           <h3>コース</h3>
-          <p>走行距離と地図を同じ画面に出します。説明がない古墳は「特になし」です。</p>
+          <p>大好きな古墳を巡る道と、その距離が同じ画面に出ます。説明がない古墳は「特になし」です。</p>
         </article>
         <article class="screen">
           <div class="phone">
@@ -489,7 +490,8 @@
               <p class="step-label">3 / 3</p>
               <h4>走行中</h4>
               <p class="km">3.2 km<span>走った距離</span></p>
-              <p class="fine">残りの道のり 7.1 km</p>
+              <p class="km">12:40<span>走った時間</span></p>
+              <p class="fine">残りの距離 7.1 km</p>
               <div class="map" aria-hidden="true">
                 <svg viewBox="0 0 120 70">
                   <polyline points="16,52 36,30 70,18 104,36" fill="none" stroke="#2f6f4e" stroke-width="3"/>
@@ -497,11 +499,11 @@
                   <circle cx="34" cy="40" r="3.5" fill="#6b4423"/>
                 </svg>
               </div>
-              <p class="notice">道を外れたので、ここから先の道を引き直しました。</p>
+              <p class="notice">二子山古墳に到着しました。</p>
             </div>
           </div>
           <h3>走行</h3>
-          <p>距離は実際に動いた長さです。道を外れると、残りを引き直します。</p>
+          <p>距離は実際に動いた長さです。時間は起点の近くに来てから増えます。残りは今いる場所からで、進むと減ります。道を外れると、残りを引き直します。</p>
         </article>
         <article class="screen">
           <div class="phone">
@@ -527,12 +529,12 @@
 
     <section class="close">
       <p class="kicker">CLOSE</p>
-      <h2>小さな旅の距離を、古墳の並びで決める。</h2>
-      <p>地名と走りたい距離から古墳を勧め、選んだ古墳だけの道と距離を出す。このページはサンプルです。文言は、このファイルを開いて直接直せます。</p>
+      <h2>２つの趣味が、一つのコースになる。</h2>
+      <p>走りたいとき、スマホでルートを作る。コースは、大好きな古墳を巡る。マラソンと古墳が、同時に、一瞬で始まる。</p>
     </section>
   </main>
   <footer>
-    古墳マラソン / 制作発表のサンプル。アプリ本体は <a href="https://tsukui192.github.io/kofun-marathon/">https://tsukui192.github.io/kofun-marathon/</a> です。画面内のコース名と距離は見本です。
+    古墳マラソン / AI Driven School 卒業制作。アプリ本体は <a href="https://tsukui192.github.io/kofun-marathon/">https://tsukui192.github.io/kofun-marathon/</a> です。画面内のコース名と距離は見本です。
   </footer>
 </body>
 </html>
