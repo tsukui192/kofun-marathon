@@ -48,6 +48,8 @@ export function MapView({
   const onStopClickRef = useRef(onStopClick)
   const onNearbyClickRef = useRef(onNearbyClick)
   const initialCenter = useRef(center)
+  const focusedRef = useRef(false)
+  const touchingRef = useRef(false)
   const [ready, setReady] = useState(false)
   onStartChangeRef.current = onStartChange
   onStopClickRef.current = onStopClick
@@ -58,7 +60,20 @@ export function MapView({
     const first = initialCenter.current
     void import('leaflet').then((leaflet) => {
       if (cancelled || !hostRef.current || mapRef.current) return
-      const map = leaflet.map(hostRef.current, { zoomControl: true }).setView([first.lat, first.lng], 14)
+      const map = leaflet
+        .map(hostRef.current, {
+          zoomControl: true,
+          zoomSnap: 0,
+          touchZoom: true,
+          dragging: true,
+        })
+        .setView([first.lat, first.lng], 14)
+      map.on('movestart', (event) => {
+        if ('originalEvent' in event && event.originalEvent) touchingRef.current = true
+      })
+      map.on('moveend', () => {
+        touchingRef.current = false
+      })
       leaflet
         .tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap',
@@ -147,18 +162,22 @@ export function MapView({
       if (!map.getContainer().isConnected) return
       map.invalidateSize()
       if (focusMeters && user) {
-        const half = focusMeters / 2
-        const latScale = 111320
-        const lngScale = 111320 * Math.cos((user.lat * Math.PI) / 180) || latScale
-        map.fitBounds(
-          leaflet.latLngBounds(
-            [user.lat - half / latScale, user.lng - half / lngScale],
-            [user.lat + half / latScale, user.lng + half / lngScale],
-          ),
-          { animate: false, padding: [0, 0], maxZoom: 19 },
-        )
+        if (!focusedRef.current) {
+          const half = focusMeters / 2
+          const latScale = 111320
+          const lngScale = 111320 * Math.cos((user.lat * Math.PI) / 180) || latScale
+          map.fitBounds(
+            leaflet.latLngBounds(
+              [user.lat - half / latScale, user.lng - half / lngScale],
+              [user.lat + half / latScale, user.lng + half / lngScale],
+            ),
+            { animate: false, padding: [0, 0], maxZoom: 19 },
+          )
+          focusedRef.current = true
+        }
         return
       }
+      focusedRef.current = false
       const bounds = leaflet.latLngBounds([])
       if (start) bounds.extend([start.lat, start.lng])
       for (const stop of stops) bounds.extend([stop.lat, stop.lng])
@@ -167,6 +186,15 @@ export function MapView({
       else map.setView([center.lat, center.lng], 14, { animate: false })
     })
   }, [ready, center, start, stops, nearby, line, track, user, draggable, focusMeters, className])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map || !focusMeters || !user || !focusedRef.current || touchingRef.current) return
+    const here = map.getCenter()
+    const samePlace = Math.abs(here.lat - user.lat) < 1e-7 && Math.abs(here.lng - user.lng) < 1e-7
+    if (samePlace) return
+    map.setView([user.lat, user.lng], map.getZoom(), { animate: false })
+  }, [ready, user, focusMeters])
 
   return <div ref={hostRef} className={className ? `map ${className}` : 'map'} />
 }
